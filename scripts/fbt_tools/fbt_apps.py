@@ -102,7 +102,7 @@ class ApplicationsCGenerator:
         # that may directly reference it, while archive runs as external .fap
         contents.extend(
             [
-                "extern const void* FLIPPER_ARCHIVE;  // Stub from archive_stub.c",
+                "/* Architectural stubs managed via service headers directly */",
             ]
         )
 
