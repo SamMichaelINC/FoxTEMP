@@ -22,7 +22,7 @@ bool archive_favorites_delete(const char* format, ...) __attribute__((__format__
 bool archive_favorites_rename(const char* src, const char* dst);
 
 // Archive app record - set to NULL since it runs external
-extern const void* FLIPPER_ARCHIVE;
+extern const void* FLIPPER_ARCHIVE = NULL;
 
 #ifdef __cplusplus
 }
