@@ -20,7 +20,7 @@
  */
 
 // FLIPPER_ARCHIVE record - NULL since archive is now external
-const void* FLIPPER_ARCHIVE = NULL;
+//const void* FLIPPER_ARCHIVE = NULL;
 
 /**
  * Stub: Handle setting pin/unpin from long-press in settings menus
