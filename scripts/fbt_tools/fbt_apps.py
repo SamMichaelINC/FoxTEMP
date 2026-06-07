@@ -100,11 +100,11 @@ class ApplicationsCGenerator:
         # v2.0: Archive is now external - use stub instead
         # This maintains FLIPPER_ARCHIVE symbol for compatibility with old code
         # that may directly reference it, while archive runs as external .fap
-        contents.extend(
-            [
-                "extern const void* FLIPPER_ARCHIVE;  // Stub from archive_stub.c",
-            ]
-        )
+        #contents.extend(
+        #    [
+        #        "extern const void* FLIPPER_ARCHIVE;  // Stub from archive_stub.c",
+        #    ]
+        #)
 
         for apptype in self.EXTERNAL_TYPE_MAP:
             entry_type, entry_block = self.EXTERNAL_TYPE_MAP[apptype]

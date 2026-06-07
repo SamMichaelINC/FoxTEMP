@@ -26,12 +26,6 @@
  */
 
 /**
- * Archive stub - FLIPPER_ARCHIVE is now external app
- * Defined in archive_stub.c
- */
-extern const void* FLIPPER_ARCHIVE;
-
-/**
  * Stub: Record deed (achievement) - COMPLETELY IGNORED
  * All deed tracking is removed for space savings.
  * Apps call this, but it does nothing.
