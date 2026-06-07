@@ -1,0 +1,14 @@
+App(
+    appid="archive",
+    name="Archive",
+    apptype=FlipperAppType.MENUEXTERNAL,
+    fap_category="System",
+    fap_version="2.0",
+    fap_description="File manager and favorites organizer",
+    fap_author="FoxFW Team",
+    fap_icon="A_FileManager_14",
+    fap_icon_assets="assets",
+    sources=["*.c*"],
+    fap_libs=["gui", "storage", "dialogs", "notification"],
+    order=10,
+)
