@@ -1,5 +1,5 @@
 entry,status,name,type,params
-Version,+,87.9,,
+Version,+,89.0,,
 Header,+,applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h,,
 Header,+,applications/services/applications.h,,
 Header,+,applications/services/bt/bt_service/bt.h,,
@@ -643,11 +643,6 @@ Function,+,aligned_malloc,void*,"size_t, size_t"
 Function,-,arc4random,__uint32_t,
 Function,-,arc4random_buf,void,"void*, size_t"
 Function,-,arc4random_uniform,__uint32_t,__uint32_t
-Function,+,archive_add_to_favorites,void,const char*
-Function,+,archive_favorites_delete,_Bool,"const char*, ..."
-Function,+,archive_favorites_handle_setting_pin_unpin,void,"const char*, const char*"
-Function,+,archive_favorites_rename,_Bool,"const char*, const char*"
-Function,+,archive_is_favorite,_Bool,"const char*, ..."
 Function,+,args_char_to_hex,_Bool,"char, char, uint8_t*"
 Function,+,args_get_first_word_length,size_t,FuriString*
 Function,+,args_length,size_t,FuriString*
@@ -1038,26 +1033,10 @@ Function,+,dir_walk_set_filter_cb,void,"DirWalk*, DirWalkFilterCb, void*"
 Function,+,dir_walk_set_recursive,void,"DirWalk*, _Bool"
 Function,-,div,div_t,"int, int"
 Function,+,dolphin_deed,void,DolphinDeed
-Function,+,dolphin_deed_get_app,DolphinApp,DolphinDeed
-Function,+,dolphin_deed_get_app_limit,uint8_t,DolphinApp
-Function,+,dolphin_deed_get_weight,uint8_t,DolphinDeed
 Function,+,dolphin_flush,void,Dolphin*
-Function,-,dolphin_get_level,uint8_t,uint32_t
 Function,+,dolphin_get_pubsub,FuriPubSub*,Dolphin*
 Function,+,dolphin_get_settings,void,"Dolphin*, DolphinSettings*"
 Function,+,dolphin_set_settings,void,"Dolphin*, DolphinSettings*"
-Function,-,dolphin_state_alloc,DolphinState*,
-Function,-,dolphin_state_butthurted,void,DolphinState*
-Function,-,dolphin_state_clear_limits,void,DolphinState*
-Function,-,dolphin_state_free,void,DolphinState*
-Function,-,dolphin_state_increase_level,void,DolphinState*
-Function,-,dolphin_state_is_levelup,_Bool,uint32_t
-Function,-,dolphin_state_load,void,DolphinState*
-Function,-,dolphin_state_on_deed,void,"DolphinState*, DolphinDeed"
-Function,-,dolphin_state_save,void,DolphinState*
-Function,-,dolphin_state_timestamp,uint64_t,
-Function,+,dolphin_state_xp_above_last_levelup,uint32_t,uint32_t
-Function,+,dolphin_state_xp_to_levelup,uint32_t,uint32_t
 Function,+,dolphin_stats,DolphinStats,Dolphin*
 Function,+,dolphin_upgrade_level,void,Dolphin*
 Function,-,dprintf,int,"int, const char*, ..."

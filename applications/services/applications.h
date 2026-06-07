@@ -5,7 +5,7 @@
 
 // v2.0 Stub includes for Archive and Dolphin
 #include "desktop/archive_stub.h"
-#include "dolphin/dolphin_stub.h"
+
 
 typedef enum {
     FlipperInternalApplicationFlagDefault = 0,

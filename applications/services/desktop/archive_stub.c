@@ -4,16 +4,18 @@
 #include <dialogs/dialogs.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+
+// Direct inclusion of the official favorites header to anchor the single source of truth
+#include <applications/main/archive/helpers/archive_favorites.h>
 
 #define ARCHIVE_FAV_PATH EXT_PATH("favorites.txt")
 
 /**
  * Archive Stub Implementation
- * 
- * Provides minimal stub functions for archive functionality when Archive
+ * * Provides minimal stub functions for archive functionality when Archive
  * is running as an external app (.fap file) instead of built-in.
- * 
- * These stubs handle:
+ * * These stubs handle:
  * - Favorites list management (simple file-based storage)
  * - Settings pin/unpin dialogs
  * - Archive app record (NULL, since it's external)
@@ -23,17 +25,34 @@
 const void* FLIPPER_ARCHIVE = NULL;
 
 /**
+ * Stub: Helper to safely read a line from a Storage File instance
+ * Without relying on non-exported implicit library helper layouts.
+ */
+static int32_t archive_stub_read_line(File* file, char* buffer, size_t max_len) {
+    size_t i = 0;
+    while(i < max_len - 1) {
+        char c;
+        uint16_t read = storage_file_read(file, &c, 1);
+        if(read == 0) {
+            if(i == 0) return 0; // EOF reached immediately
+            break;
+        }
+        if(c == '\r') continue;
+        if(c == '\n') break;
+        buffer[i++] = c;
+    }
+    buffer[i] = '\0';
+    return i;
+}
+
+/**
  * Stub: Handle setting pin/unpin from long-press in settings menus
  * Shows a simple dialog instead of launching archive settings
  */
 void archive_favorites_handle_setting_pin_unpin(const char* app_name, const char* setting) {
-    if(!app_name) {
-        return;
-    }
-
-    // Minimal stub - just a no-op or simple log
-    // In a full implementation, this would show a dialog
-    // For now, favorites are stored externally and managed by the archive app itself
+    UNUSED(app_name);
+    UNUSED(setting);
+    // Minimal stub - parameters cleanly silenced to satisfy -Werror constraints
 }
 
 /**
@@ -59,7 +78,7 @@ bool archive_is_favorite(const char* format, ...) {
     bool found = false;
     if(storage_file_open(file, ARCHIVE_FAV_PATH, FSAM_READ, FSOM_OPEN_EXISTING)) {
         char buffer[256];
-        while(storage_file_read_line(file, buffer, sizeof(buffer)) > 0) {
+        while(archive_stub_read_line(file, buffer, sizeof(buffer)) > 0) {
             if(strcmp(buffer, path_buffer) == 0) {
                 found = true;
                 break;
@@ -121,8 +140,7 @@ bool archive_favorites_delete(const char* format, ...) {
     if(storage_file_open(file_in, ARCHIVE_FAV_PATH, FSAM_READ, FSOM_OPEN_EXISTING)) {
         if(storage_file_open(file_out, ARCHIVE_FAV_PATH ".tmp", FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
             char buffer[256];
-            int read_len;
-            while((read_len = storage_file_read_line(file_in, buffer, sizeof(buffer))) > 0) {
+            while(archive_stub_read_line(file_in, buffer, sizeof(buffer)) > 0) {
                 if(strcmp(buffer, path_buffer) != 0) {
                     storage_file_write(file_out, (uint8_t*)buffer, strlen(buffer));
                     storage_file_write(file_out, (uint8_t*)"\n", 1);
@@ -165,8 +183,7 @@ bool archive_favorites_rename(const char* src, const char* dst) {
     if(storage_file_open(file_in, ARCHIVE_FAV_PATH, FSAM_READ, FSOM_OPEN_EXISTING)) {
         if(storage_file_open(file_out, ARCHIVE_FAV_PATH ".tmp", FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
             char buffer[256];
-            int read_len;
-            while((read_len = storage_file_read_line(file_in, buffer, sizeof(buffer))) > 0) {
+            while(archive_stub_read_line(file_in, buffer, sizeof(buffer)) > 0) {
                 if(strcmp(buffer, src) == 0) {
                     storage_file_write(file_out, (uint8_t*)dst, strlen(dst));
                     storage_file_write(file_out, (uint8_t*)"\n", 1);
