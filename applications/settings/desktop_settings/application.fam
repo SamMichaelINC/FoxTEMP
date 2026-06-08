@@ -9,6 +9,7 @@ App(
     ],
     stack_size=1 * 1024,
     order=40,
+    sources=["*.c",],
     fap_libs=["assets"],
     fap_category="assets",
     fap_icon_assets="images",
