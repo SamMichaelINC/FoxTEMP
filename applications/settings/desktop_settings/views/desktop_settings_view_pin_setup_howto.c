@@ -1,72 +1,66 @@
-#include <furi.h>
-#include <furi_hal.h>
-#include <gui/elements.h>
-#include <gui/canvas.h>
-#include <toolbox/version.h>
-#include <assets_icons.h>
-#include <dolphin/helpers/dolphin_state.h>
-#include <dolphin/dolphin.h>
-
 #include "desktop_settings_view_pin_setup_howto.h"
+#include <gui/canvas.h>
+#include <assets_icons.h>
+#include <furi.h>
 
 struct DesktopSettingsViewPinSetupHowto {
     View* view;
-    DesktopSettingsViewPinSetupHowtoDoneCallback callback;
+    DesktopSettingsViewPinSetupHowtoDoneCallback done_callback;
     void* context;
 };
 
-static void desktop_settings_view_pin_setup_howto_draw(Canvas* canvas, void* model) {
-    furi_assert(canvas);
-    UNUSED(model);
-
-    canvas_draw_icon(canvas, 16, 18, &I_Pin_attention_dpad_29x29);
-    elements_button_right(canvas, "Next");
-
-    canvas_set_font(canvas, FontPrimary);
-    elements_multiline_text_aligned(canvas, 64, 0, AlignCenter, AlignTop, "Setting Up PIN");
-
-    canvas_set_font(canvas, FontSecondary);
-    elements_multiline_text(canvas, 58, 24, "Prepare to use\narrows as\nPIN symbols");
-}
-
-static bool desktop_settings_view_pin_setup_howto_input(InputEvent* event, void* context) {
-    furi_assert(event);
+static void desktop_settings_view_pin_setup_howto_draw_callback(Canvas* canvas, void* context) {
     furi_assert(context);
-
-    DesktopSettingsViewPinSetupHowto* instance = context;
-    bool consumed = false;
-
-    if((event->key == InputKeyRight) && (event->type == InputTypeShort)) {
-        instance->callback(instance->context);
-        consumed = true;
-    }
-
-    return consumed;
+    struct DesktopSettingsViewPinSetupHowto* instance = context;
+    UNUSED(instance);
+    
+    canvas_clear(canvas);
+    
+    /* 1. Draw your custom 64x64 Fox logo aligned tightly to the left side */
+    canvas_draw_icon(canvas, 2, 0, &I_fox_64x64);
+    
+    /* 2. Render professional setup instructions next to the graphic */
+    canvas_set_font(canvas, FontPrimary);
+    canvas_draw_str(canvas, 70, 12, "PIN Setup");
+    
+    canvas_set_font(canvas, FontSecondary);
+    canvas_draw_str(canvas, 70, 26, "Create a");
+    canvas_draw_str(canvas, 70, 36, "secure code");
+    canvas_draw_str(canvas, 70, 46, "using the");
+    canvas_draw_str(canvas, 70, 56, "keypad.");
 }
 
-void desktop_settings_view_pin_setup_howto_set_callback(
-    DesktopSettingsViewPinSetupHowto* instance,
-    DesktopSettingsViewPinSetupHowtoDoneCallback callback,
-    void* context) {
-    furi_assert(instance);
-    furi_assert(callback);
-    instance->callback = callback;
-    instance->context = context;
+static bool desktop_settings_view_pin_setup_howto_input_callback(InputEvent* event, void* context) {
+    furi_assert(context);
+    struct DesktopSettingsViewPinSetupHowto* instance = context;
+    
+    /* When OK or Right is short-pressed, cleanly execute our bound scene event callback */
+    if(event->type == InputTypeShort) {
+        if(event->key == InputKeyOk || event->key == InputKeyRight) {
+            if(instance->done_callback) {
+                instance->done_callback(instance->context);
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 DesktopSettingsViewPinSetupHowto* desktop_settings_view_pin_setup_howto_alloc(void) {
-    DesktopSettingsViewPinSetupHowto* view = malloc(sizeof(DesktopSettingsViewPinSetupHowto));
-    view->view = view_alloc();
-    view_set_context(view->view, view);
-    view_set_draw_callback(view->view, desktop_settings_view_pin_setup_howto_draw);
-    view_set_input_callback(view->view, desktop_settings_view_pin_setup_howto_input);
-
-    return view;
+    DesktopSettingsViewPinSetupHowto* instance = malloc(sizeof(DesktopSettingsViewPinSetupHowto));
+    instance->view = view_alloc();
+    instance->done_callback = NULL;
+    instance->context = NULL;
+    
+    view_set_context(instance->view, instance);
+    view_set_draw_callback(instance->view, desktop_settings_view_pin_setup_howto_draw_callback);
+    view_set_input_callback(instance->view, desktop_settings_view_pin_setup_howto_input_callback);
+    
+    return instance;
 }
 
 void desktop_settings_view_pin_setup_howto_free(DesktopSettingsViewPinSetupHowto* instance) {
     furi_assert(instance);
-
     view_free(instance->view);
     free(instance);
 }
@@ -74,4 +68,13 @@ void desktop_settings_view_pin_setup_howto_free(DesktopSettingsViewPinSetupHowto
 View* desktop_settings_view_pin_setup_howto_get_view(DesktopSettingsViewPinSetupHowto* instance) {
     furi_assert(instance);
     return instance->view;
+}
+
+void desktop_settings_view_pin_setup_howto_set_callback(
+    DesktopSettingsViewPinSetupHowto* instance,
+    DesktopSettingsViewPinSetupHowtoDoneCallback callback,
+    void* context) {
+    furi_assert(instance);
+    instance->done_callback = callback;
+    instance->context = context;
 }

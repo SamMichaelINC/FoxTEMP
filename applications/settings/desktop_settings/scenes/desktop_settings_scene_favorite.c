@@ -5,6 +5,30 @@
 #include <flipper_application/flipper_application.h>
 #include <storage/storage.h>
 #include <dialogs/dialogs.h>
+//#include "desktop_settings_icons.h"
+//#include <assets_icons.h>
+
+// Explicitly declare the icon structures as external references.
+// This satisfies the compiler WITHOUT triggering dynamic import or linker conflicts.
+extern const Icon I_125_10px;
+extern const Icon I_Apps_10px;
+extern const Icon I_back_10px;
+extern const Icon I_badusb_10px;
+extern const Icon I_dir_10px;
+extern const Icon I_file_10px;
+extern const Icon I_ibutt_10px;
+extern const Icon I_ir_10px;
+extern const Icon I_js_script_10px;
+extern const Icon I_keyboard_10px;
+extern const Icon I_loading_10px;
+extern const Icon I_music_10px;
+extern const Icon I_Nfc_10px;
+extern const Icon I_settings_10px;
+extern const Icon I_sub1_10px;
+extern const Icon I_subrem_10px;
+extern const Icon I_u2f_10px;
+extern const Icon I_unknown_10px;
+extern const Icon I_update_10px;
 
 #define APPS_COUNT (FLIPPER_APPS_COUNT + FLIPPER_EXTERNAL_APPS_COUNT)
 

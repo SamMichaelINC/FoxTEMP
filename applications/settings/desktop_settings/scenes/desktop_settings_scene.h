@@ -10,6 +10,18 @@ typedef enum {
 } DesktopSettingsAppScene;
 #undef ADD_SCENE
 
+// Explicitly define every distinct view ID referenced across the UI routing dispatcher layers
+enum {
+    DesktopSettingsAppViewMenu,
+    DesktopSettingsAppViewVarItemList,
+    DesktopSettingsAppViewIdPopup,
+    DesktopSettingsAppViewIdPinInput,
+    DesktopSettingsAppViewIdPinSetupHowto,
+    DesktopSettingsAppViewIdPinSetupHowto2,
+    DesktopSettingsAppViewDialogEx,
+    DesktopSettingsAppViewTextInput,
+};
+
 extern const SceneManagerHandlers desktop_settings_scene_handlers;
 
 // Generate scene on_enter handlers declaration

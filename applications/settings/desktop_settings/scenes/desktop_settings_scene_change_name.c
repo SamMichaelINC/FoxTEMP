@@ -2,6 +2,10 @@
 #include <desktop/desktop_settings.h>
 #include "desktop_settings_scene.h"
 
+#ifndef FURI_HAL_VERSION_ARRAY_NAME_LENGTH
+#define FURI_HAL_VERSION_ARRAY_NAME_LENGTH 8
+#endif
+
 enum TextInputIndex {
     TextInputResultOk,
 };

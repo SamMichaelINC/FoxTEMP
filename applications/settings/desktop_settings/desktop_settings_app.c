@@ -9,9 +9,6 @@
 #include <desktop/desktop.h>
 #include <desktop/views/desktop_view_pin_input.h>
 
-#include <desktop/desktop.h>
-#include <desktop/views/desktop_view_pin_input.h>
-
 #include "desktop_settings_app.h"
 #include "scenes/desktop_settings_scene.h"
 
@@ -49,6 +46,7 @@ DesktopSettingsApp* desktop_settings_app_alloc(void) {
     app->pin_input_view = desktop_view_pin_input_alloc();
     app->pin_setup_howto_view = desktop_settings_view_pin_setup_howto_alloc();
     app->pin_setup_howto2_view = desktop_settings_view_pin_setup_howto2_alloc();
+    app->numeric_pin_view = desktop_settings_view_numeric_pin_alloc();
     app->dialog_ex = dialog_ex_alloc();
 
     view_dispatcher_add_view(
@@ -59,10 +57,13 @@ DesktopSettingsApp* desktop_settings_app_alloc(void) {
         variable_item_list_get_view(app->variable_item_list));
     view_dispatcher_add_view(
         app->view_dispatcher, DesktopSettingsAppViewIdPopup, popup_get_view(app->popup));
+    
+    /* We bind our custom soft curved numeric view directly to the main input ID route */
     view_dispatcher_add_view(
         app->view_dispatcher,
         DesktopSettingsAppViewIdPinInput,
-        desktop_view_pin_input_get_view(app->pin_input_view));
+        desktop_settings_view_numeric_pin_get_view(app->numeric_pin_view));
+        
     view_dispatcher_add_view(
         app->view_dispatcher,
         DesktopSettingsAppViewIdPinSetupHowto,
@@ -88,7 +89,6 @@ void desktop_settings_app_free(DesktopSettingsApp* app) {
     furi_assert(app);
 
     bool temp_save_name = app->save_name;
-    // Save name if set or remove file
     if(temp_save_name) {
         Storage* storage = furi_record_open(RECORD_STORAGE);
         if(strcmp(app->device_name, "") == 0) {
@@ -108,7 +108,6 @@ void desktop_settings_app_free(DesktopSettingsApp* app) {
         furi_record_close(RECORD_STORAGE);
     }
 
-    // Variable item list
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewMenu);
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewVarItemList);
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewIdPopup);
@@ -116,21 +115,21 @@ void desktop_settings_app_free(DesktopSettingsApp* app) {
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewIdPinSetupHowto);
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewIdPinSetupHowto2);
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewDialogEx);
-    // TextInput
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewTextInput);
+    
     text_input_free(app->text_input);
-
     variable_item_list_free(app->variable_item_list);
     submenu_free(app->submenu);
     popup_free(app->popup);
     desktop_view_pin_input_free(app->pin_input_view);
     desktop_settings_view_pin_setup_howto_free(app->pin_setup_howto_view);
     desktop_settings_view_pin_setup_howto2_free(app->pin_setup_howto2_view);
+    desktop_settings_view_numeric_pin_free(app->numeric_pin_view);
     dialog_ex_free(app->dialog_ex);
-    // View dispatcher
+    
     view_dispatcher_free(app->view_dispatcher);
     scene_manager_free(app->scene_manager);
-    // Records
+    
     furi_record_close(RECORD_DIALOGS);
     furi_record_close(RECORD_GUI);
     free(app);
@@ -148,14 +147,11 @@ extern int32_t desktop_settings_app(void* p) {
     Desktop* desktop = furi_record_open(RECORD_DESKTOP);
 
     desktop_api_get_settings(desktop, &app->settings);
-
     scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneStart);
-
     view_dispatcher_run(app->view_dispatcher);
-
     desktop_api_set_settings(desktop, &app->settings);
+    
     furi_record_close(RECORD_DESKTOP);
-
     desktop_settings_app_free(app);
 
     return 0;

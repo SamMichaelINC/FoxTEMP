@@ -11,4 +11,5 @@ App(
     order=40,
     fap_libs=["assets"],
     fap_category="assets",
+    fap_icon_assets="images",
 )

@@ -1,0 +1,15 @@
+#pragma once
+
+#include <gui/view.h>
+
+typedef struct DesktopSettingsViewNumericPin DesktopSettingsViewNumericPin;
+typedef void (*DesktopSettingsViewNumericPinCallback)(bool success, void* context);
+
+DesktopSettingsViewNumericPin* desktop_settings_view_numeric_pin_alloc(void);
+void desktop_settings_view_numeric_pin_free(DesktopSettingsViewNumericPin* instance);
+View* desktop_settings_view_numeric_pin_get_view(DesktopSettingsViewNumericPin* instance);
+void desktop_settings_view_numeric_pin_set_callback(
+    DesktopSettingsViewNumericPin* instance,
+    DesktopSettingsViewNumericPinCallback callback,
+    void* context);
+void desktop_settings_view_numeric_pin_reset(DesktopSettingsViewNumericPin* instance);
