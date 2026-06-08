@@ -151,7 +151,7 @@ bool desktop_settings_scene_favorite_on_event(void* context, SceneManagerEvent e
         } else if(event.event == EXTERNAL_APPLICATION_INDEX) {
             const DialogsFileBrowserOptions browser_options = {
                 .extension = ".fap",
-                .icon = &I_unknown_10px,
+                .icon = NULL,
                 .skip_assets = true,
                 .hide_ext = true,
                 .item_loader_callback = favorite_fap_selector_item_callback,

@@ -21,7 +21,7 @@ void desktop_settings_scene_pin_disable_on_enter(void* context) {
 
     popup_set_context(app->popup, app);
     popup_set_callback(app->popup, pin_disable_back_callback);
-    // [NO_DOLPHIN] popup_set_icon(app->popup, 0, 2, &I_DolphinMafia_119x62);
+    // [NO_DOLPHIN] popup_set_icon(app->popup, 0, 2, NULL);
     popup_set_header(app->popup, "Removed", 100, 10, AlignCenter, AlignTop);
     popup_set_timeout(app->popup, 1500);
     popup_enable_timeout(app->popup);
