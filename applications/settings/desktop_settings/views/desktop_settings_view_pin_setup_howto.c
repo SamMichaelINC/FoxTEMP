@@ -2,7 +2,7 @@
 #include <gui/canvas.h>
 #include <assets_icons.h>
 #include <furi.h>
-#include "desktop_settings_icons.h"
+
 struct DesktopSettingsViewPinSetupHowto {
     View* view;
     DesktopSettingsViewPinSetupHowtoDoneCallback done_callback;
@@ -16,10 +16,15 @@ static void desktop_settings_view_pin_setup_howto_draw_callback(Canvas* canvas, 
     
     canvas_clear(canvas);
     
-    /* 1. Draw your custom 64x64 Fox logo aligned tightly to the left side */
-    canvas_draw_icon(canvas, 2, 0, NULL);
+    /* 1. Draw a simple, clean local graphics border instead of a missing PNG icon */
+    canvas_set_color(canvas, ColorBlack);
+    canvas_draw_rframe(canvas, 2, 2, 60, 60, 3);
     
-    /* 2. Render professional setup instructions next to the graphic */
+    canvas_set_font(canvas, FontSecondary);
+    canvas_draw_str_aligned(canvas, 32, 28, AlignCenter, AlignCenter, "FOX");
+    canvas_draw_str_aligned(canvas, 32, 38, AlignCenter, AlignCenter, "SECURE");
+    
+    /* 2. Render professional setup instructions next to our boundary frame */
     canvas_set_font(canvas, FontPrimary);
     canvas_draw_str(canvas, 70, 12, "PIN Setup");
     

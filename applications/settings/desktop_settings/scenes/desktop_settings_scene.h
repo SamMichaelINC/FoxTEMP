@@ -2,7 +2,7 @@
 
 #include <gui/scene_manager.h>
 
-// Generate scene id and total number
+// Generate scene IDs dynamically from configuration header - Single Source of Truth
 #define ADD_SCENE(prefix, name, id) DesktopSettingsAppScene##id,
 typedef enum {
 #include "desktop_settings_scene_config.h"
@@ -11,7 +11,7 @@ typedef enum {
 #undef ADD_SCENE
 
 // Explicitly define every distinct view ID referenced across the UI routing dispatcher layers
-enum {
+typedef enum {
     DesktopSettingsAppViewMenu,
     DesktopSettingsAppViewVarItemList,
     DesktopSettingsAppViewIdPopup,
@@ -20,7 +20,7 @@ enum {
     DesktopSettingsAppViewIdPinSetupHowto2,
     DesktopSettingsAppViewDialogEx,
     DesktopSettingsAppViewTextInput,
-};
+} DesktopSettingsAppView;
 
 extern const SceneManagerHandlers desktop_settings_scene_handlers;
 

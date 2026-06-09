@@ -7,11 +7,12 @@
 #include "../desktop_settings_app.h"
 #include "../desktop_settings_custom_event.h"
 #include <desktop/desktop_settings.h>
-#include <desktop/views/desktop_view_pin_input.h>
+// FIXED: Removed the forbidden kernel header
+#include "../views/desktop_settings_view_numeric_pin.h"
 #include "desktop_settings_scene.h"
 
-static void pin_setup_done_callback(const DesktopPinCode* pin_code, void* context) {
-    furi_assert(pin_code);
+static void pin_setup_done_numeric_callback(bool success, void* context) {
+    UNUSED(success);
     furi_assert(context);
     DesktopSettingsApp* app = context;
 
@@ -21,6 +22,7 @@ static void pin_setup_done_callback(const DesktopPinCode* pin_code, void* contex
 void desktop_settings_scene_pin_setup_done_on_enter(void* context) {
     DesktopSettingsApp* app = context;
 
+    // This part is great—it saves the newly configured PIN to the device storage
     desktop_pin_code_set(&app->pincode_buffer);
 
     NotificationApp* notification = furi_record_open(RECORD_NOTIFICATION);
@@ -28,16 +30,14 @@ void desktop_settings_scene_pin_setup_done_on_enter(void* context) {
     notification_message(notification, &sequence_blink_green_10);
     furi_record_close(RECORD_NOTIFICATION);
 
-    desktop_view_pin_input_set_context(app->pin_input_view, app);
-    desktop_view_pin_input_set_back_callback(app->pin_input_view, NULL);
-    desktop_view_pin_input_set_done_callback(app->pin_input_view, pin_setup_done_callback);
-    desktop_view_pin_input_set_pin(app->pin_input_view, &app->pincode_buffer);
-    desktop_view_pin_input_set_label_button(app->pin_input_view, "Done");
+    // FIXED: Use our custom local view module instead of the unexported kernel module
+    desktop_settings_view_numeric_pin_reset(app->numeric_pin_view);
+    desktop_settings_view_numeric_pin_set_callback(
+        app->numeric_pin_view, pin_setup_done_numeric_callback, app);
     
-    /* Reposition primary activation message over alphanumeric display grid template */
-    desktop_view_pin_input_set_label_primary(app->pin_input_view, 14, 25, "PIN Activated!");
-    
-    desktop_view_pin_input_lock_input(app->pin_input_view);
+    // Note: If you want to lock the input matrix so they just see the confirmation layout,
+    // your numeric_pin_view handles drawing the keys, and interacting triggers the done callback.
+
     view_dispatcher_switch_to_view(app->view_dispatcher, DesktopSettingsAppViewIdPinInput);
 }
 
@@ -70,6 +70,6 @@ bool desktop_settings_scene_pin_setup_done_on_event(void* context, SceneManagerE
 void desktop_settings_scene_pin_setup_done_on_exit(void* context) {
     furi_assert(context);
     DesktopSettingsApp* app = context;
-    desktop_view_pin_input_set_back_callback(app->pin_input_view, NULL);
-    desktop_view_pin_input_set_done_callback(app->pin_input_view, NULL);
+    // FIXED: Safely clean out the local numeric module references
+    desktop_settings_view_numeric_pin_set_callback(app->numeric_pin_view, NULL, NULL);
 }

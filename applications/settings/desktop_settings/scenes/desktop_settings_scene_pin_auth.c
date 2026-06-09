@@ -5,47 +5,71 @@
 #include "../desktop_settings_app.h"
 #include "../desktop_settings_custom_event.h"
 #include <desktop/desktop_settings.h>
-#include <desktop/views/desktop_view_pin_input.h>
+
+// FIXED: Removed the unexported kernel view header
+#include "../views/desktop_settings_view_numeric_pin.h" 
 #include "desktop_settings_scene.h"
 #include "desktop_settings_scene_i.h"
 
-static void pin_auth_done_callback(const DesktopPinCode* pin_code, void* context) {
-    furi_assert(pin_code);
+// Hardware layout translation map for processing the numeric index to Flipper keypresses
+static const InputKey pin_hardware_map[10] = {
+    InputKeyDown,  // 0 -> Down
+    InputKeyLeft,  // 1 -> Left
+    InputKeyUp,    // 2 -> Up
+    InputKeyRight, // 3 -> Right
+    InputKeyDown,  // 4 -> Down
+    InputKeyLeft,  // 5 -> Left
+    InputKeyUp,    // 6 -> Up
+    InputKeyRight, // 7 -> Right
+    InputKeyDown,  // 8 -> Down
+    InputKeyLeft   // 9 -> Left
+};
+
+static void pin_auth_numeric_callback(bool success, void* context) {
     furi_assert(context);
-
     DesktopSettingsApp* app = context;
-    app->pincode_buffer = *pin_code;
 
-    if(desktop_pin_code_check(pin_code)) {
-        view_dispatcher_send_custom_event(
-            app->view_dispatcher, DesktopSettingsCustomEventPinsEqual);
+    if(success) {
+        View* view = desktop_settings_view_numeric_pin_get_view(app->numeric_pin_view);
+        
+        struct {
+            uint8_t selected_row;
+            uint8_t selected_col;
+            uint8_t pin_length;
+            uint8_t pin_buffer[10];
+        }* model = view_get_model(view);
+
+        // Translate the input pin index buffer to hardware keys
+        for(uint8_t i = 0; i < model->pin_length; i++) {
+            uint8_t numeric_digit = model->pin_buffer[i];
+            app->pincode_buffer.data[i] = pin_hardware_map[numeric_digit % 10];
+        }
+        app->pincode_buffer.length = model->pin_length;
+        view_commit_model(view, false);
+
+        // Check if the input pin matches the system pin
+        if(desktop_pin_code_check(&app->pincode_buffer)) {
+            view_dispatcher_send_custom_event(
+                app->view_dispatcher, DesktopSettingsCustomEventPinsEqual);
+        } else {
+            view_dispatcher_send_custom_event(
+                app->view_dispatcher, DesktopSettingsCustomEventPinsDifferent);
+        }
     } else {
-        view_dispatcher_send_custom_event(
-            app->view_dispatcher, DesktopSettingsCustomEventPinsDifferent);
+        // Handle back/exit selection from the keyboard view matrix
+        view_dispatcher_send_custom_event(app->view_dispatcher, DesktopSettingsCustomEventExit);
     }
-}
-
-static void pin_auth_back_callback(void* context) {
-    DesktopSettingsApp* app = context;
-    view_dispatcher_send_custom_event(app->view_dispatcher, DesktopSettingsCustomEventExit);
 }
 
 void desktop_settings_scene_pin_auth_on_enter(void* context) {
     furi_assert(desktop_pin_code_is_set());
-
     DesktopSettingsApp* app = context;
 
-    desktop_view_pin_input_set_context(app->pin_input_view, app);
-    desktop_view_pin_input_set_back_callback(app->pin_input_view, pin_auth_back_callback);
-    desktop_view_pin_input_set_done_callback(app->pin_input_view, pin_auth_done_callback);
-    desktop_view_pin_input_set_label_button(app->pin_input_view, "OK");
-    
-    /* Adjusted layout position parameters to match our alphanumeric matrix limits */
-    desktop_view_pin_input_set_label_primary(
-        app->pin_input_view, 14, 25, "Enter Current PIN:");
-        
-    desktop_view_pin_input_reset_pin(app->pin_input_view);
-    desktop_view_pin_input_unlock_input(app->pin_input_view);
+    // FIXED: Point authentication execution flows strictly to our custom local view modules
+    desktop_settings_view_numeric_pin_reset(app->numeric_pin_view);
+    desktop_settings_view_numeric_pin_set_callback(
+        app->numeric_pin_view, pin_auth_numeric_callback, app);
+
     view_dispatcher_switch_to_view(app->view_dispatcher, DesktopSettingsAppViewIdPinInput);
 }
 
@@ -91,6 +115,6 @@ bool desktop_settings_scene_pin_auth_on_event(void* context, SceneManagerEvent e
 void desktop_settings_scene_pin_auth_on_exit(void* context) {
     furi_assert(context);
     DesktopSettingsApp* app = context;
-    desktop_view_pin_input_set_back_callback(app->pin_input_view, NULL);
-    desktop_view_pin_input_set_done_callback(app->pin_input_view, NULL);
+    // FIXED: Safely clean out the local numeric module references
+    desktop_settings_view_numeric_pin_set_callback(app->numeric_pin_view, NULL, NULL);
 }

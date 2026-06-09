@@ -7,10 +7,10 @@
 #include <power/power_service/power.h>
 
 #include <desktop/desktop.h>
-#include <desktop/views/desktop_view_pin_input.h>
 
 #include "desktop_settings_app.h"
 #include "scenes/desktop_settings_scene.h"
+#include "views/desktop_settings_view_numeric_pin.h"
 
 static bool desktop_settings_custom_event_callback(void* context, uint32_t event) {
     furi_assert(context);
@@ -43,11 +43,14 @@ DesktopSettingsApp* desktop_settings_app_alloc(void) {
     app->popup = popup_alloc();
     app->submenu = submenu_alloc();
     app->variable_item_list = variable_item_list_alloc();
-    app->pin_input_view = desktop_view_pin_input_alloc();
+    
     app->pin_setup_howto_view = desktop_settings_view_pin_setup_howto_alloc();
     app->pin_setup_howto2_view = desktop_settings_view_pin_setup_howto2_alloc();
     app->numeric_pin_view = desktop_settings_view_numeric_pin_alloc();
     app->dialog_ex = dialog_ex_alloc();
+
+    // FIX: Initialize the view index pointer so the Scene Manager targets our custom PIN view!
+    app->pin_menu_idx = DesktopSettingsAppViewIdPinInput;
 
     view_dispatcher_add_view(
         app->view_dispatcher, DesktopSettingsAppViewMenu, submenu_get_view(app->submenu));
@@ -58,7 +61,7 @@ DesktopSettingsApp* desktop_settings_app_alloc(void) {
     view_dispatcher_add_view(
         app->view_dispatcher, DesktopSettingsAppViewIdPopup, popup_get_view(app->popup));
     
-    /* We bind our custom soft curved numeric view directly to the main input ID route */
+    /* We bind our custom soft-curved numeric view directly to the main input ID route */
     view_dispatcher_add_view(
         app->view_dispatcher,
         DesktopSettingsAppViewIdPinInput,
@@ -121,7 +124,7 @@ void desktop_settings_app_free(DesktopSettingsApp* app) {
     variable_item_list_free(app->variable_item_list);
     submenu_free(app->submenu);
     popup_free(app->popup);
-    desktop_view_pin_input_free(app->pin_input_view);
+    
     desktop_settings_view_pin_setup_howto_free(app->pin_setup_howto_view);
     desktop_settings_view_pin_setup_howto2_free(app->pin_setup_howto2_view);
     desktop_settings_view_numeric_pin_free(app->numeric_pin_view);
@@ -140,19 +143,16 @@ void desktop_settings_app_free(DesktopSettingsApp* app) {
     }
 }
 
-extern int32_t desktop_settings_app(void* p) {
+// Global application entry point executed by the OS
+int32_t desktop_settings_app(void* p) {
     UNUSED(p);
 
     DesktopSettingsApp* app = desktop_settings_app_alloc();
-    Desktop* desktop = furi_record_open(RECORD_DESKTOP);
-
-    desktop_api_get_settings(desktop, &app->settings);
+    
+    // Start up your standard state-machine, landing beautifully on your main list page
     scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneStart);
     view_dispatcher_run(app->view_dispatcher);
-    desktop_api_set_settings(desktop, &app->settings);
-    
-    furi_record_close(RECORD_DESKTOP);
-    desktop_settings_app_free(app);
 
+    desktop_settings_app_free(app);
     return 0;
 }

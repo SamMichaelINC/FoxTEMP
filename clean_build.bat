@@ -1,25 +1,37 @@
 @echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 
 :MENU
 cls
 echo ===================================================
-echo 🦊 FOXFW MASTER COMPILATION OPERATOR AUTOMATION
+echo  MASTER COMPILATION OPERATOR AUTOMATION
 echo ===================================================
 echo.
-echo  [F] Clean Workspace + Flash Live USB (flash_usb_full)
-echo  [U] Clean Workspace + Generate DFU Updater Package
-echo  [N] Native Fast Compilation Pass Only (just fbt)
-echo  [E] Close Terminal operator console window
+echo  [F] Clean Workspace + Flash Live USB [flash_usb_full]
+echo  [U] Clean Workspace + Generate TGZ ^& DFU [updater_package]
+echo  [C] Run fbt -c
+echo  [K] Delete Build, Dist, ^& scons.dblite
+echo  [E] Delete Build, Dist, ^& scons.dblite + run fbt -c
+echo  [N] Native Fast Compilation Pass Only [fbt]
+echo.
+echo  [M] Min-Package (DFU ONLY) [fbt updater_minpackage]
+echo  [A] Exit Fox Master Compilation window to CMD
+echo  [D] Exit Fox Master Compilation window and Close Window
 echo.
 echo ===================================================
 echo.
 
 :: Capture character keys instantly without pressing Enter
-choice /c FUNE /n /m "Select your compilation route: "
+choice /c FUCKENMAD /n /m "Select your compilation route: "
 
-if errorlevel 4 goto EXATOR
-if errorlevel 3 goto JUSTFBT
+if errorlevel 9 goto CMD_EXIT
+if errorlevel 8 goto CMD_GOTO
+if errorlevel 7 goto MINPKG
+if errorlevel 6 goto JUSTFBT
+if errorlevel 5 goto CLEAN_FBT
+if errorlevel 4 goto JUST_CLEAN
+if errorlevel 3 goto FBT_C
 if errorlevel 2 goto UPDPKG
 if errorlevel 1 goto LVEUSB
 
@@ -31,7 +43,24 @@ echo ===================================================
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist .sconsign.dblite del /f /q .sconsign.dblite
+call fbt -c
+
+:LOOP_LVEUSB
+echo Running live USB flash...
+:: Clear history buffer so we only check the upcoming command
+doskey /reinstall >nul 2>&1
+
+:: Runs completely native and streams live with 0 buffering or file locks
 call fbt flash_usb_full COMPACT=1 DEBUG=0 FORCE=1
+
+:: Extract the screen output from the console memory buffer and check for either error word
+doskey /history | findstr /I "Permission Denied" >nul
+if %errorlevel%==0 (
+    echo.
+    echo ⚠️ Permission or Denied detected! Retrying command...
+    echo.
+    goto LOOP_LVEUSB
+)
 echo.
 echo Press any key to return to Master Menu...
 pause >nul
@@ -45,7 +74,63 @@ echo ===================================================
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist .sconsign.dblite del /f /q .sconsign.dblite
+call fbt -c
+
+:LOOP_UPDPKG
+echo Running updater package...
+:: Clear history buffer so we only check the upcoming command
+doskey /reinstall >nul 2>&1
+
+:: Runs completely native and streams live with 0 buffering or file locks
 call fbt updater_package COMPACT=1 DEBUG=0 FORCE=1
+
+:: Extract the screen output from the console memory buffer and check for either error word
+doskey /history | findstr /I "Permission Denied" >nul
+if %errorlevel%==0 (
+    echo.
+    echo ⚠️ Permission or Denied detected! Retrying command...
+    echo.
+    goto LOOP_UPDPKG
+)
+echo.
+echo Press any key to return to Master Menu...
+pause >nul
+goto MENU
+
+:FBT_C
+cls
+echo ===================================================
+echo 🚀 RUNNING FBT CLEAN (-c)...
+echo ===================================================
+call fbt -c
+echo.
+echo Press any key to return to Master Menu...
+pause >nul
+goto MENU
+
+:JUST_CLEAN
+cls
+echo ===================================================
+echo 🚀 DELETING BUILD, DIST, AND SCONS.DBLITE...
+echo ===================================================
+if exist build rmdir /s /q build
+if exist dist rmdir /s /q dist
+if exist .sconsign.dblite del /f /q .sconsign.dblite
+echo Done.
+echo.
+echo Press any key to return to Master Menu...
+pause >nul
+goto MENU
+
+:CLEAN_FBT
+cls
+echo ===================================================
+echo 🚀 DELETING FILES AND RUNNING FBT CLEAN...
+echo ===================================================
+if exist build rmdir /s /q build
+if exist dist rmdir /s /q dist
+if exist .sconsign.dblite del /f /q .sconsign.dblite
+call fbt -c
 echo.
 echo Press any key to return to Master Menu...
 pause >nul
@@ -56,14 +141,31 @@ cls
 echo ===================================================
 echo 🚀 LAUNCHING NATIVE FAST COMPILATION PASS ONLY...
 echo ===================================================
-:: Fast Pass: Leaves the drive caches intact to build instantly!
-call fbt COMPACT=1 DEBUG=0 FORCE=1
+call fbt
 echo.
 echo Press any key to return to Master Menu...
 pause >nul
 goto MENU
 
-:EXATOR
+:MINPKG
+cls
+echo ===================================================
+echo 🚀 RUNNING MIN-PACKAGE (DFU ONLY)...
+echo ===================================================
+call fbt updater_minpackage
+echo.
+echo Press any key to return to Master Menu...
+pause >nul
+goto MENU
+
+:CMD_GOTO
+cls
+echo 📄 Opening command prompt in this folder...
+echo.
+start cmd /k
+exit
+
+:CMD_EXIT
 cls
 echo 📄 Closing operator console window...
 exit

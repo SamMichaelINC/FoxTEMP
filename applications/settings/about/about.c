@@ -75,7 +75,7 @@ static DialogMessageButton compliance_screen(DialogsApp* dialogs, DialogMessage*
 static DialogMessageButton foxfw_info_screen(DialogsApp* dialogs, DialogMessage* message) {
     DialogMessageButton result;
 
-    const char* screen_header = "Fox Firmware v1.0\n";
+    const char* screen_header = "Fox Firmware v2.0\n";
 
     const char* screen_text = "Firmware Provided for lawful\nuse ONLY! Using it to conduct\nillegal activities may lead to\nprosecution or jail time.";
 
@@ -103,22 +103,24 @@ static DialogMessageButton foxfw_info_screen2(DialogsApp* dialogs, DialogMessage
 
     return result;
 }
-/*
+
 static DialogMessageButton foxfw_info_screen3(DialogsApp* dialogs, DialogMessage* message) {
-    DialogMessageButton result;
+     DialogMessageButton result;
 
-    const char* screen_text = "Special Thanks to:\n"
-                              "Name\n"
-                              "Name\n"
-                              "Name";
+    const char* screen_header = "     Special Thanks\n";
 
-    dialog_message_set_text(message, screen_text, 0, 0, AlignLeft, AlignTop);
+    const char* screen_text = "     Adam Alioa  (z4men)\n"
+                              "For his tireless support\nand contributions.\nYou rock, Adam!";
+    dialog_message_set_header(message, screen_header, 0, 0, AlignLeft, AlignTop);
+    dialog_message_set_text(message, screen_text, 0, 11, AlignLeft, AlignTop);
     result = dialog_message_show(dialogs, message);
+    dialog_message_set_header(message, NULL, 0, 0, AlignLeft, AlignTop);
     dialog_message_set_text(message, NULL, 0, 0, AlignLeft, AlignTop);
 
     return result;
+    
 }
-*/
+
 
 
 static DialogMessageButton hw_version_screen(DialogsApp* dialogs, DialogMessage* message) {
@@ -195,7 +197,7 @@ static DialogMessageButton fw_version_screen(DialogsApp* dialogs, DialogMessage*
 const AboutDialogScreen about_screens[] = {
     foxfw_info_screen,
     foxfw_info_screen2,
-    //foxfw_info_screen3,
+    foxfw_info_screen3,
     product_screen,
     compliance_screen,
     address_screen,
