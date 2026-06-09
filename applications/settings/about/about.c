@@ -110,7 +110,7 @@ static DialogMessageButton foxfw_info_screen3(DialogsApp* dialogs, DialogMessage
     const char* screen_header = "     Special Thanks\n";
 
     const char* screen_text = "     Adam Alioa  (z4men)\n"
-                              "For his tireless support\nand contributions.\nYou rock, Adam!";
+                              "For his tireless support, contributions, and patience.\nYou rock, Adam!";
     dialog_message_set_header(message, screen_header, 0, 0, AlignLeft, AlignTop);
     dialog_message_set_text(message, screen_text, 0, 11, AlignLeft, AlignTop);
     result = dialog_message_show(dialogs, message);

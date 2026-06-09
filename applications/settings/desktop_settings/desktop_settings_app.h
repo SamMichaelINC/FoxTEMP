@@ -28,11 +28,12 @@
 #define desktop_pin_code_reset()         (void)0
 #define desktop_pin_lock_error_notify()   (void)0
 
-// Clean void-cast function mock that compiles and runs on any Flipper version
-static inline void desktop_set_pin(void* service, void* pin_code) {
-    (void)service;
-    (void)pin_code;
-}
+// Robust macro substitution to prevent implicit function declaration errors
+#define desktop_set_pin(service, pin_code) \
+    do {                                   \
+        (void)(service);                   \
+        (void)(pin_code);                  \
+    } while(0)
 
 // Fix for FreeRTOS scheduler tracking variable
 #define uxTopUsedPriority 0
