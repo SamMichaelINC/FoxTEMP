@@ -9,7 +9,7 @@
 #include <gui/modules/text_input.h>
 
 #include <desktop/desktop.h>
-#include <desktop/helpers/pin_code.h> // Brings back the definition for DesktopPinCode!
+#include <desktop/helpers/pin_code.h> // Brings back the true definition for DesktopPinCode!
 #include <dialogs/dialogs.h>
 
 #include "views/desktop_settings_view_pin_setup_howto.h"
@@ -22,13 +22,10 @@
 // ==========================================
 // DESKTOP SERVICE COMPATIBILITY MOCK BLOCKS
 // ==========================================
-#define desktop_pin_code_is_set()        (false)
-#define desktop_pin_code_check(x)        (false)
-#define desktop_pin_code_set(x)          (void)0
-#define desktop_pin_code_reset()         (void)0
+// We do NOT mock desktop_pin_code_set() anymore so it successfully writes the PIN to flash storage!
 #define desktop_pin_lock_error_notify()   (void)0
 
-// Robust macro substitution to prevent implicit function declaration errors
+// FIX: Mock only the internal desktop_set_pin helper to satisfy FBT compiler checks
 #define desktop_set_pin(service, pin_code) \
     do {                                   \
         (void)(service);                   \

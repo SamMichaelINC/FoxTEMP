@@ -3,39 +3,40 @@
 #include <notification/notification_messages.h>
 #include <gui/scene_manager.h>
 #include <gui/view_dispatcher.h>
+#include <gui/modules/popup.h>
 
 #include "../desktop_settings_app.h"
 #include "../desktop_settings_custom_event.h"
 #include <desktop/desktop_settings.h>
-#include "../views/desktop_settings_view_numeric_pin.h"
 #include "desktop_settings_scene.h"
 
-static void pin_setup_done_numeric_callback(bool success, void* context) {
-    UNUSED(success);
+static void pin_setup_done_popup_callback(void* context) {
     furi_assert(context);
     DesktopSettingsApp* app = context;
-
     view_dispatcher_send_custom_event(app->view_dispatcher, DesktopSettingsCustomEventDone);
 }
 
 void desktop_settings_scene_pin_setup_done_on_enter(void* context) {
     DesktopSettingsApp* app = context;
 
-    // Save the translated passcode buffer to the persistent hardware secure enclave!
+    // Write the compiled directional PIN to persistent storage
     desktop_pin_code_set(&app->pincode_buffer);
 
+    // Provide physical haptic/vibe and LED confirmation
     NotificationApp* notification = furi_record_open(RECORD_NOTIFICATION);
     notification_message(notification, &sequence_single_vibro);
     notification_message(notification, &sequence_blink_green_10);
     furi_record_close(RECORD_NOTIFICATION);
 
-    // Show our success layout using the keypad in confirmed lock display mode
-    desktop_settings_view_numeric_pin_reset(app->numeric_pin_view);
-    desktop_settings_view_numeric_pin_set_mode(app->numeric_pin_view, true); // Keep centered "Confirm:"
-    desktop_settings_view_numeric_pin_set_callback(
-        app->numeric_pin_view, pin_setup_done_numeric_callback, app);
+    // Cleanly present a success popup message with standard checkmark graphics
+    popup_set_context(app->popup, app);
+    popup_set_callback(app->popup, pin_setup_done_popup_callback);
+    popup_set_header(app->popup, "PIN Is Set!", 64, 15, AlignCenter, AlignTop);
+    popup_set_text(app->popup, "Your settings are\nsaved successfully.", 64, 38, AlignCenter, AlignTop);
+    popup_set_timeout(app->popup, 1800); // 1.8 second visible window before redirect
+    popup_enable_timeout(app->popup);
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, DesktopSettingsAppViewIdPinInput);
+    view_dispatcher_switch_to_view(app->view_dispatcher, DesktopSettingsAppViewIdPopup);
 }
 
 bool desktop_settings_scene_pin_setup_done_on_event(void* context, SceneManagerEvent event) {
@@ -45,8 +46,7 @@ bool desktop_settings_scene_pin_setup_done_on_event(void* context, SceneManagerE
     if(event.type == SceneManagerEventTypeCustom) {
         switch(event.event) {
         case DesktopSettingsCustomEventDone: {
-            bool scene_found = false;
-            scene_found = scene_manager_search_and_switch_to_previous_scene(
+            bool scene_found = scene_manager_search_and_switch_to_previous_scene(
                 app->scene_manager, DesktopSettingsAppScenePinMenu);
             if(!scene_found) {
                 view_dispatcher_stop(app->view_dispatcher);
@@ -67,5 +67,5 @@ bool desktop_settings_scene_pin_setup_done_on_event(void* context, SceneManagerE
 void desktop_settings_scene_pin_setup_done_on_exit(void* context) {
     furi_assert(context);
     DesktopSettingsApp* app = context;
-    desktop_settings_view_numeric_pin_set_callback(app->numeric_pin_view, NULL, NULL);
+    popup_reset(app->popup);
 }

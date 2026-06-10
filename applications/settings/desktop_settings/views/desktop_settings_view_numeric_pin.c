@@ -56,13 +56,8 @@ static void desktop_settings_view_numeric_pin_draw_callback(Canvas* canvas, void
 
     // Left border aligned to match the left border of the 3rd column (X = 59)
     // Width stretches to reach the right border of the sidebar (X = 124, so width = 65)
+    // Rounded soft corner frame with radius 2
     canvas_draw_rframe(canvas, 59, 1, 65, 13, 2);
-    
-    // Patch the hollow corner pixels on the PIN input box for a solid high-contrast border
-    canvas_draw_dot(canvas, 59, 1);
-    canvas_draw_dot(canvas, 59 + 65 - 1, 1);
-    canvas_draw_dot(canvas, 59, 1 + 13 - 1);
-    canvas_draw_dot(canvas, 59 + 65 - 1, 1 + 13 - 1);
 
     // Draw small filled circular discs inside the input box (only for entered characters)
     uint8_t total_dots = model->pin_length;
@@ -90,24 +85,13 @@ static void desktop_settings_view_numeric_pin_draw_callback(Canvas* canvas, void
             bool is_selected = (row == model->selected_row && col == model->selected_col);
             if(is_selected) {
                 canvas_set_color(canvas, ColorBlack);
+                // Draws rounded soft-corner selection background with radius 2
                 canvas_draw_rbox(canvas, box_x, box_y, KEY_WIDTH, KEY_HEIGHT, 2);
-                
-                // Patch selection box corners so they appear cleanly filled
-                canvas_draw_dot(canvas, box_x, box_y);
-                canvas_draw_dot(canvas, box_x + KEY_WIDTH - 1, box_y);
-                canvas_draw_dot(canvas, box_x, box_y + KEY_HEIGHT - 1);
-                canvas_draw_dot(canvas, box_x + KEY_WIDTH - 1, box_y + KEY_HEIGHT - 1);
-                
                 canvas_set_color(canvas, ColorWhite);
             } else {
                 canvas_set_color(canvas, ColorBlack);
+                // Draws rounded soft-corner frame with radius 2
                 canvas_draw_rframe(canvas, box_x, box_y, KEY_WIDTH, KEY_HEIGHT, 2);
-                
-                // Patch frame outline corners so the line is continuous and unbroken
-                canvas_draw_dot(canvas, box_x, box_y);
-                canvas_draw_dot(canvas, box_x + KEY_WIDTH - 1, box_y);
-                canvas_draw_dot(canvas, box_x, box_y + KEY_HEIGHT - 1);
-                canvas_draw_dot(canvas, box_x + KEY_WIDTH - 1, box_y + KEY_HEIGHT - 1);
             }
 
             if(col < 3) {
@@ -125,15 +109,28 @@ static void desktop_settings_view_numeric_pin_draw_callback(Canvas* canvas, void
                     main_text_map[idx]
                 );
             } else {
-                // Action sidebar utility keys (<-/0/Set)
+                // Action sidebar utility keys (<- / 0 / Set)
                 int16_t text_x = box_x + (KEY_WIDTH / 2);
                 int16_t text_y = box_y + (KEY_HEIGHT / 2) + 1;
 
                 if(row == 0) {
-                    // Backspace key display "<-" (smaller and bold double strike)
-                    canvas_set_font(canvas, FontKeyboard);
-                    canvas_draw_str_aligned(canvas, text_x, text_y, AlignCenter, AlignCenter, "<-");
-                    canvas_draw_str_aligned(canvas, text_x + 1, text_y, AlignCenter, AlignCenter, "<-");
+                    // Draw a sleek, professional, left-pointing backspace arrow frame centered in this button
+                    // The button box size is (KEY_WIDTH: 25, KEY_HEIGHT: 13)
+                    int16_t x = box_x + 6;
+                    int16_t y = box_y + 2;
+
+                    // Arrow tip points left to (x, y + 4)
+                    canvas_draw_line(canvas, x, y + 4, x + 4, y);
+                    canvas_draw_line(canvas, x, y + 4, x + 4, y + 8);
+                    
+                    // Box frame body
+                    canvas_draw_line(canvas, x + 4, y, x + 12, y);
+                    canvas_draw_line(canvas, x + 4, y + 8, x + 12, y + 8);
+                    canvas_draw_line(canvas, x + 12, y, x + 12, y + 8);
+
+                    // Perfectly centered internal "X"
+                    canvas_draw_line(canvas, x + 6, y + 2, x + 10, y + 6);
+                    canvas_draw_line(canvas, x + 10, y + 2, x + 6, y + 6);
                 } else if(row == 1) {
                     // Bold zero key centered perfectly
                     canvas_set_font(canvas, FontPrimary); 

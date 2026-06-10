@@ -100,6 +100,7 @@ static void desktop_scene_pin_input_update_wrong_count(DesktopScenePinInputState
     /* Safely route counter variables directly to our alphanumeric telemetry parser matrix */
     desktop_view_pin_input_update_telemetry(desktop->pin_input_view, current_fails, MAX_ALLOWED_ATTEMPTS_LIMIT);
 }
+
 void desktop_scene_pin_input_on_enter(void* context) {
     Desktop* desktop = (Desktop*)context;
 
@@ -119,7 +120,9 @@ void desktop_scene_pin_input_on_enter(void* context) {
 
     desktop_view_pin_input_hide_pin(desktop->pin_input_view, true);
     desktop_view_pin_input_set_label_button(desktop->pin_input_view, "OK");
-    desktop_view_pin_input_set_label_primary(desktop->pin_input_view, 14, 25, "Enter Alphanumeric PIN:");
+    
+    // FIX: Changed "Enter Alphanumeric PIN:" cleanly to "Enter PIN:" to avoid clipping!
+    desktop_view_pin_input_set_label_primary(desktop->pin_input_view, 14, 25, "Enter PIN:");
     
     desktop_scene_pin_input_update_wrong_count(state, desktop);
     desktop_view_pin_input_reset_pin(desktop->pin_input_view);
@@ -145,8 +148,9 @@ bool desktop_scene_pin_input_on_event(void* context, SceneManagerEvent event) {
                 scene_manager_next_scene(desktop->scene_manager, DesktopScenePinTimeout);
             } else {
                 desktop_scene_locked_light_red(true);
+                // FIX: Shortened the error string to fit comfortably inside the layout bounds
                 desktop_view_pin_input_set_label_primary(
-                    desktop->pin_input_view, 14, 25, "PIN Invalid, Try Again:");
+                    desktop->pin_input_view, 14, 25, "Invalid PIN!");
                 desktop_scene_pin_input_set_timer(desktop, true, WRONG_PIN_HEADER_TIMEOUT);
                 desktop_scene_pin_input_update_wrong_count(state, desktop);
                 desktop_view_pin_input_reset_pin(desktop->pin_input_view);
@@ -155,8 +159,9 @@ bool desktop_scene_pin_input_on_event(void* context, SceneManagerEvent event) {
             break;
         case DesktopPinInputEventResetWrongPinLabel:
             desktop_scene_locked_light_red(false);
+            // FIX: Reverts cleanly back to "Enter PIN:"
             desktop_view_pin_input_set_label_primary(
-                desktop->pin_input_view, 14, 25, "Enter Alphanumeric PIN:");
+                desktop->pin_input_view, 14, 25, "Enter PIN:");
             desktop_scene_pin_input_update_wrong_count(state, desktop);
             consumed = true;
             break;

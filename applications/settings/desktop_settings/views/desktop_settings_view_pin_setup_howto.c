@@ -11,28 +11,23 @@ struct DesktopSettingsViewPinSetupHowto {
 
 static void desktop_settings_view_pin_setup_howto_draw_callback(Canvas* canvas, void* context) {
     furi_assert(context);
-    struct DesktopSettingsViewPinSetupHowto* instance = context;
-    UNUSED(instance);
     
     canvas_clear(canvas);
     
-    /* 1. Draw a simple, clean local graphics border instead of a missing PNG icon */
+    // 1. Draw your custom compiled Fox asset at coordinates (0, 0)
+    // FBT automatically links this from your images/fox_64x64.png file
+    canvas_draw_icon(canvas, 0, 0, &I_fox_64x64);
+    
+    // 2. Render professional setup instructions next to your logo asset
     canvas_set_color(canvas, ColorBlack);
-    canvas_draw_rframe(canvas, 2, 2, 60, 60, 3);
-    
-    canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str_aligned(canvas, 32, 28, AlignCenter, AlignCenter, "FOX");
-    canvas_draw_str_aligned(canvas, 32, 38, AlignCenter, AlignCenter, "SECURE");
-    
-    /* 2. Render professional setup instructions next to our boundary frame */
     canvas_set_font(canvas, FontPrimary);
-    canvas_draw_str(canvas, 70, 12, "PIN Setup");
+    canvas_draw_str(canvas, 68, 12, "PIN Setup");
     
     canvas_set_font(canvas, FontSecondary);
-    canvas_draw_str(canvas, 70, 26, "Create a");
-    canvas_draw_str(canvas, 70, 36, "secure code");
-    canvas_draw_str(canvas, 70, 46, "using the");
-    canvas_draw_str(canvas, 70, 56, "keypad.");
+    canvas_draw_str(canvas, 68, 26, "Create a");
+    canvas_draw_str(canvas, 68, 36, "secure code");
+    canvas_draw_str(canvas, 68, 46, "using the");
+    canvas_draw_str(canvas, 68, 56, "keypad.");
 }
 
 static bool desktop_settings_view_pin_setup_howto_input_callback(InputEvent* event, void* context) {
