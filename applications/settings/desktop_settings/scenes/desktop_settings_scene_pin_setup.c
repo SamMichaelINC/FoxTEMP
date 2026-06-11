@@ -8,7 +8,11 @@ static uint8_t first_pass_digits[8];
 static uint8_t first_pass_len = 0;
 static uint8_t fail_attempts = 0;
 static bool confirmation_phase_active = false;
-
+static const InputKey numeric_to_key[10] = {
+    InputKeyDown, InputKeyLeft, InputKeyUp, InputKeyRight,
+    InputKeyDown, InputKeyLeft, InputKeyUp, InputKeyRight,
+    InputKeyDown, InputKeyLeft
+};
 enum {
     LocalSceneEventPinSubmitted,
     LocalSceneEventBackTriggered,
@@ -60,7 +64,9 @@ bool desktop_settings_scene_pin_setup_on_event(void* context, SceneManagerEvent 
                     
                     // CRITICAL FIX: Actually load the confirmed digits into the app's pincode buffer!
                     memset(&app->pincode_buffer, 0, sizeof(DesktopPinCode));
-                    memcpy(app->pincode_buffer.data, first_pass_digits, first_pass_len);
+                    for(uint8_t i = 0; i < first_pass_len; i++) {
+                        app->pincode_buffer.data[i] = numeric_to_key[first_pass_digits[i] % 10];
+                    }
                     app->pincode_buffer.length = first_pass_len;
                     
                     Desktop* desktop_service = furi_record_open(RECORD_DESKTOP);
