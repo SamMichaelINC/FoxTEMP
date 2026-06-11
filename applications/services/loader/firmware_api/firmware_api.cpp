@@ -1,5 +1,5 @@
 #include "firmware_api.h"
-
+#include "applications/services/desktop/helpers/pin_code.h"
 #include <flipper_application/api_hashtable/api_hashtable.h>
 #include <flipper_application/api_hashtable/compilesort.hpp>
 
@@ -7,6 +7,7 @@
 #include <firmware_api_table.h>
 
 #include <furi_hal_info.h>
+
 
 static_assert(!has_hash_collisions(elf_api_table), "Detected API method hash collision!");
 

@@ -1,5 +1,5 @@
 entry,status,name,type,params
-Version,+,91.0,,
+Version,+,87.8,,
 Header,+,applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h,,
 Header,+,applications/services/applications.h,,
 Header,+,applications/services/bt/bt_service/bt.h,,
@@ -10,6 +10,7 @@ Header,+,applications/services/cli/cli.h,,
 Header,+,applications/services/cli/cli_vcp.h,,
 Header,+,applications/services/desktop/desktop.h,,
 Header,+,applications/services/desktop/desktop_settings.h,,
+Header,+,applications/services/desktop/helpers/pin_code.h,,
 Header,+,applications/services/dialogs/dialogs.h,,
 Header,+,applications/services/dolphin/dolphin.h,,
 Header,+,applications/services/expansion/expansion.h,,
@@ -983,6 +984,13 @@ Function,-,desktop_api_get_status_pubsub,FuriPubSub*,Desktop*
 Function,-,desktop_api_is_locked,_Bool,Desktop*
 Function,+,desktop_api_set_settings,void,"Desktop*, const DesktopSettings*"
 Function,-,desktop_api_unlock,void,Desktop*
+Function,+,desktop_pin_code_check,_Bool,const DesktopPinCode*
+Function,+,desktop_pin_code_is_equal,_Bool,"const DesktopPinCode*, const DesktopPinCode*"
+Function,+,desktop_pin_code_is_set,_Bool,
+Function,+,desktop_pin_code_reset,void,
+Function,+,desktop_pin_code_set,void,const DesktopPinCode*
+Function,+,desktop_pin_lock_error_notify,void,
+Function,+,desktop_pin_lock_get_fail_timeout,uint32_t,
 Function,+,desktop_settings_load,void,DesktopSettings*
 Function,+,desktop_settings_save,void,const DesktopSettings*
 Function,+,dialog_ex_alloc,DialogEx*,
@@ -1300,6 +1308,13 @@ Function,-,fmodf,float,"float, float"
 Function,-,fmodl,long double,"long double, long double"
 Function,-,fopen,FILE*,"const char*, const char*"
 Function,-,fopencookie,FILE*,"void*, const char*, cookie_io_functions_t"
+Function,+,fox_escrow_execute_wipe,void,
+Function,+,fox_escrow_load_and_verify,_Bool,FoxEscrowData*
+Function,+,fox_escrow_save_state,_Bool,const FoxEscrowData*
+Function,+,fox_escrow_trigger_honeypot_panic,void,
+Function,+,fox_recovery_check_and_reset,_Bool,
+Function,+,fox_recovery_generate_file,_Bool,uint8_t
+Function,+,fox_recovery_validate_and_register_token,_Bool,const char*
 Function,-,fprintf,int,"FILE*, const char*, ..."
 Function,-,fpurge,int,FILE*
 Function,-,fputc,int,"int, FILE*"

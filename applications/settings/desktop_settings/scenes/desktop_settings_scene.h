@@ -18,6 +18,7 @@ typedef enum {
     DesktopSettingsAppViewIdPinInput,
     DesktopSettingsAppViewIdPinSetupHowto,
     DesktopSettingsAppViewIdPinSetupHowto2,
+    DesktopSettingsAppViewIdPinError,
     DesktopSettingsAppViewDialogEx,
     DesktopSettingsAppViewTextInput,
 } DesktopSettingsAppView;

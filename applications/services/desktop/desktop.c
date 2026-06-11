@@ -11,7 +11,7 @@
 
 #include "scenes/desktop_scene.h"
 #include "scenes/desktop_scene_locked.h"
-
+#include "helpers/pin_code.h"
 #include "furi_hal_power.h"
 
 #define TAG "Desktop"
@@ -282,7 +282,6 @@ static Desktop* desktop_alloc(void) {
     desktop->pin_input_view = desktop_view_pin_input_alloc();
     desktop->pin_timeout_view = desktop_view_pin_timeout_alloc();
     desktop->slideshow_view = desktop_view_slideshow_alloc();
-    //desktop->tos_view = desktop_view_tos_alloc();
 
     desktop->main_view_stack = view_stack_alloc();
     desktop->main_view = desktop_main_alloc();
@@ -292,8 +291,6 @@ static Desktop* desktop_alloc(void) {
     view_stack_add_view(
         desktop->main_view_stack, desktop_view_locked_get_view(desktop->locked_view));
 
-    /* locked view (as animation view) attends in 2 scenes: main & locked,
-     * because it has to draw "Unlocked" label on main scene */
     desktop->locked_view_stack = view_stack_alloc();
     view_stack_add_view(desktop->locked_view_stack, dolphin_view);
     view_stack_add_view(
@@ -327,12 +324,7 @@ static Desktop* desktop_alloc(void) {
         desktop->view_dispatcher,
         DesktopViewIdSlideshow,
         desktop_view_slideshow_get_view(desktop->slideshow_view));
-    //view_dispatcher_add_view(
-        //desktop->view_dispatcher,
-        //DesktopViewIdTos,
-        //desktop_view_tos_get_view(desktop->tos_view));
 
-    // Lock icon
     desktop->lock_icon_viewport = view_port_alloc();
     view_port_set_width(desktop->lock_icon_viewport, icon_get_width(&I_Lock_7x8));
     view_port_draw_callback_set(
@@ -340,14 +332,12 @@ static Desktop* desktop_alloc(void) {
     view_port_enabled_set(desktop->lock_icon_viewport, false);
     gui_add_view_port(desktop->gui, desktop->lock_icon_viewport, GuiLayerStatusBarLeft);
 
-    // Clock
     desktop->clock_viewport = view_port_alloc();
     view_port_set_width(desktop->clock_viewport, 25);
     view_port_draw_callback_set(desktop->clock_viewport, desktop_clock_draw_callback, desktop);
     view_port_enabled_set(desktop->clock_viewport, false);
     gui_add_view_port(desktop->gui, desktop->clock_viewport, GuiLayerStatusBarRight);
 
-    // Stealth mode icon
     desktop->stealth_mode_icon_viewport = view_port_alloc();
     view_port_set_width(desktop->stealth_mode_icon_viewport, icon_get_width(&I_Muted_8x8));
     view_port_draw_callback_set(
@@ -359,7 +349,6 @@ static Desktop* desktop_alloc(void) {
     }
     gui_add_view_port(desktop->gui, desktop->stealth_mode_icon_viewport, GuiLayerStatusBarLeft);
 
-    // Unload animations before starting an application
     desktop->loader = furi_record_open(RECORD_LOADER);
     furi_pubsub_subscribe(loader_get_pubsub(desktop->loader), desktop_loader_callback, desktop);
 
@@ -381,10 +370,6 @@ static Desktop* desktop_alloc(void) {
 
     return desktop;
 }
-
-/*
- * Private API
- */
 
 void desktop_lock(Desktop* desktop) {
     furi_assert(!desktop->locked);
@@ -447,10 +432,6 @@ void desktop_set_stealth_mode_state(Desktop* desktop, bool enabled) {
     desktop->in_transition = false;
 }
 
-/*
- *  Public API
- */
-
 bool desktop_api_is_locked(Desktop* instance) {
     furi_assert(instance);
     return furi_hal_rtc_is_flag_set(FuriHalRtcFlagLock);
@@ -486,10 +467,6 @@ void desktop_api_set_settings(Desktop* instance, const DesktopSettings* settings
     view_dispatcher_send_custom_event(instance->view_dispatcher, DesktopGlobalSaveSettings);
 }
 
-/*
- * Application thread
- */
-
 int32_t desktop_srv(void* p) {
     UNUSED(p);
 
@@ -516,9 +493,7 @@ int32_t desktop_srv(void* p) {
 
     if(storage_file_exists(desktop->storage, SLIDESHOW_FS_PATH)) {
         scene_manager_next_scene(desktop->scene_manager, DesktopSceneSlideshow);
-    } //else {
-        //scene_manager_next_scene(desktop->scene_manager, DesktopSceneTos);
-    //}
+    }
 
     if(!furi_hal_version_do_i_belong_here()) {
         scene_manager_next_scene(desktop->scene_manager, DesktopSceneHwMismatch);
@@ -539,13 +514,11 @@ int32_t desktop_srv(void* p) {
         scene_manager_next_scene(desktop->scene_manager, DesktopSceneSecureEnclave);
     }
 
-    // Special case: autostart application is already running
     if(desktop->app_running && animation_manager_is_animation_loaded(desktop->animation_manager)) {
         animation_manager_unload_and_stall_animation(desktop->animation_manager);
     }
 
     view_dispatcher_run(desktop->view_dispatcher);
 
-    // Should never get here (a service thread will crash automatically if it returns)
     return 0;
 }

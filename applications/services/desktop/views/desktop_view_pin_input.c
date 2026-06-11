@@ -4,8 +4,10 @@
 #include <gui/elements.h>
 #include <assets_icons.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "desktop_view_pin_input.h"
+#include "../helpers/pin_code.h"
 
 #define NO_ACTIVITY_TIMEOUT 15000
 
@@ -15,13 +17,13 @@
 #define KEY_ROWS 3
 #define KEY_COLS 4
 
-// Pixel-perfect layout constants to fit perfectly inside the 128x55 safe area (Clear of statusbar)
+// Pixel-perfect layout constants to fit inside the 128x55 safe area
 #define KEY_WIDTH 25
-#define KEY_HEIGHT 11    // Adjusted to 11 to fit within the lower 55px safe area
+#define KEY_HEIGHT 11
 #define GRID_START_X 5
-#define GRID_START_Y 24   // Shifted down to y=24 to leave plenty of room above
+#define GRID_START_Y 24
 #define X_GAP 2
-#define Y_GAP 1          // Compacted to 1px gap for vertical space efficiency
+#define Y_GAP 1
 #define SIDEBAR_GAP_X 12
 
 static const char* const main_text_map[9] = {
@@ -46,7 +48,6 @@ typedef struct {
     uint8_t pin_x;
     uint8_t pin_y;
     
-    /* 2D coordinates for the grid layout navigation */
     uint8_t selected_row;
     uint8_t selected_col;
     
@@ -58,12 +59,10 @@ typedef struct {
     uint8_t primary_str_y;
     const char* button_label;
 
-    /* Tracks exact numeric button inputs for clean arrow translation and delete history */
     uint8_t typed_digits[15];
     uint8_t typed_digits_len;
 } DesktopViewPinInputModel;
 
-/* Maps our digits cleanly to Flipper's hardware arrow directional codes */
 static void desktop_view_pin_input_rebuild_pin(DesktopViewPinInputModel* model) {
     model->pin.length = 0;
     for(uint8_t i = 0; i < model->typed_digits_len; i++) {
@@ -135,16 +134,13 @@ static bool desktop_view_pin_input_input(InputEvent* event, void* context) {
         case InputKeyOk:
             if(!model->locked_input) {
                 if(model->selected_col < 3) {
-                    // Number clicked (1-9)
                     if(model->typed_digits_len < MAX_PIN_LENGTH) {
                         uint8_t idx = (model->selected_row * 3) + model->selected_col;
                         model->typed_digits[model->typed_digits_len++] = idx + 1;
                         desktop_view_pin_input_rebuild_pin(model);
                     }
                 } else {
-                    // Action column clicked
                     if(model->selected_row == 0) {
-                        // Backspace arrow clicked
                         if(model->typed_digits_len > 0) {
                             model->typed_digits_len--;
                             desktop_view_pin_input_rebuild_pin(model);
@@ -152,13 +148,11 @@ static bool desktop_view_pin_input_input(InputEvent* event, void* context) {
                             call_back_callback = true;
                         }
                     } else if(model->selected_row == 1) {
-                        // "0" clicked
                         if(model->typed_digits_len < MAX_PIN_LENGTH) {
                             model->typed_digits[model->typed_digits_len++] = 0;
                             desktop_view_pin_input_rebuild_pin(model);
                         }
                     } else if(model->selected_row == 2) {
-                        // "OK / Set" clicked
                         if(model->typed_digits_len >= MIN_PIN_LENGTH) {
                             call_done_callback = true;
                             pin_code = model->pin;
@@ -182,6 +176,7 @@ static bool desktop_view_pin_input_input(InputEvent* event, void* context) {
         }
     }
 
+    // CRITICAL: Commit model before execution transitions to prevent double-lock deadlocks
     view_commit_model(pin_input->view, true);
 
     if(call_done_callback && pin_input->done_callback) {
@@ -203,18 +198,28 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
     canvas_clear(canvas);
     canvas_set_color(canvas, ColorBlack);
     
-    /* 1. Header Status Text Alignment (Centered within the y=10 to y=22 header row) */
     canvas_set_font(canvas, FontPrimary);
+    
+    if(model->locked_input) {
+        canvas_draw_icon(canvas, 2, 0, &I_fox_64x64);
+        canvas_set_font(canvas, FontPrimary);
+        canvas_draw_str(canvas, 68, 12, "Device Blocked");
+        canvas_set_font(canvas, FontSecondary);
+        canvas_draw_str(canvas, 68, 26, "Wipe Limit reached.");
+        canvas_draw_str(canvas, 68, 38, "Please perform a");
+        canvas_draw_str(canvas, 68, 50, "Full Factory Reset");
+        canvas_draw_str(canvas, 68, 62, "to restore access.");
+        return;
+    }
+
     if(model->primary_str) {
         canvas_draw_str_aligned(canvas, 59 / 2, 16, AlignCenter, AlignCenter, model->primary_str);
     } else {
         canvas_draw_str_aligned(canvas, 59 / 2, 16, AlignCenter, AlignCenter, "Enter PIN:");
     }
     
-    /* 2. Soft-Curved PIN Input Frame shifted down to start at y=10 */
     canvas_draw_rframe(canvas, 59, 10, 65, 12, 2);
 
-    // Render dots based on typed digits length so backspacing works intuitively (1 dot per digit)
     uint8_t total_dots = model->typed_digits_len;
     if (total_dots > 0) {
         int16_t box_center_x = 59 + (65 / 2);
@@ -222,11 +227,10 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
 
         for(uint8_t i = 0; i < total_dots; i++) {
             int16_t dot_x = dot_start_x + (i * 7);
-            canvas_draw_disc(canvas, dot_x, 16, 2); // Center dots vertically within the box
+            canvas_draw_disc(canvas, dot_x, 16, 2);
         }
     }
 
-    /* 3. Render 3x4 Grid Layout (Now positioned entirely below y=24) */
     for(uint8_t row = 0; row < KEY_ROWS; row++) {
         for(uint8_t col = 0; col < KEY_COLS; col++) {
             int16_t box_x = GRID_START_X + (col * (KEY_WIDTH + X_GAP));
@@ -246,7 +250,6 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
             }
 
             if(col < 3) {
-                // Alphanumeric numbers (1-9)
                 uint8_t idx = (row * 3) + col;
                 canvas_set_font(canvas, FontPrimary);
                 canvas_draw_str_aligned(
@@ -258,12 +261,10 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
                     main_text_map[idx]
                 );
             } else {
-                // Action sidebar utility keys
                 int16_t text_x = box_x + (KEY_WIDTH / 2);
                 int16_t text_y = box_y + (KEY_HEIGHT / 2) + 1;
 
                 if(row == 0) {
-                    // Professional backspace arrow centered vertically for 11px button height
                     int16_t x = box_x + 6;
                     int16_t y = box_y + 1;
 
@@ -273,15 +274,12 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
                     canvas_draw_line(canvas, x + 4, y + 8, x + 12, y + 8);
                     canvas_draw_line(canvas, x + 12, y, x + 12, y + 8);
 
-                    // Perfectly centered internal "X"
                     canvas_draw_line(canvas, x + 6, y + 2, x + 10, y + 6);
                     canvas_draw_line(canvas, x + 10, y + 2, x + 6, y + 6);
                 } else if(row == 1) {
-                    // Zero Key
                     canvas_set_font(canvas, FontPrimary); 
                     canvas_draw_str_aligned(canvas, text_x, text_y, AlignCenter, AlignCenter, "0");
                 } else if(row == 2) {
-                    // OK / Set Key
                     canvas_set_font(canvas, FontKeyboard);
                     const char* btn_label = model->button_label ? model->button_label : "OK";
                     canvas_draw_str_aligned(canvas, text_x, text_y, AlignCenter, AlignCenter, btn_label);
@@ -291,13 +289,17 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
         }
     }
 
-    /* 4. Warning Attempts Telemetry Layer (Drawn dynamically if attempts exist) */
-    if(model->current_fail_count > 0) {
+    if(model->current_fail_count > 0 && model->max_allowed_attempts > 0) {
         char telemetry_str[32];
-        snprintf(telemetry_str, sizeof(telemetry_str), "Attempts: %d / %d", 
-                 model->current_fail_count, model->max_allowed_attempts);
+        
+        if((model->current_fail_count + 1) >= model->max_allowed_attempts) {
+            snprintf(telemetry_str, sizeof(telemetry_str), "LAST ATTEMPT!");
+        } else {
+            snprintf(telemetry_str, sizeof(telemetry_str), "Attempt %d/%d", 
+                     model->current_fail_count, model->max_allowed_attempts);
+        }
+        
         canvas_set_font(canvas, FontKeyboard);
-        // Positioned perfectly in the top-left corner above row 1 keys
         canvas_draw_str_aligned(canvas, GRID_START_X, 11, AlignLeft, AlignBottom, telemetry_str);
     }
 }
@@ -330,7 +332,9 @@ DesktopViewPinInput* desktop_view_pin_input_alloc(void) {
     view_set_enter_callback(pin_input->view, desktop_view_pin_input_enter);
     view_set_exit_callback(pin_input->view, desktop_view_pin_input_exit);
 
+    // Atomic Init sanitation
     DesktopViewPinInputModel* model = view_get_model(pin_input->view);
+    memset(model, 0, sizeof(DesktopViewPinInputModel));
     model->pin.length = 0;
     model->typed_digits_len = 0;
     model->selected_row = 0;
@@ -405,8 +409,8 @@ void desktop_view_pin_input_set_label_primary(DesktopViewPinInput* pin_input, ui
     furi_assert(pin_input);
     DesktopViewPinInputModel* model = view_get_model(pin_input->view);
     
-    // FIX: Intercept "Alphanumeric PIN" text from Desktop Service and rewrite it cleanly
-    if(label && strcmp(label, "Alphanumeric PIN:") == 0) {
+    // Intercept "Alphanumeric PIN" text from Desktop Service and rewrite it cleanly
+    if(label && strcmp(label, "Alphanumeric PIN") == 0) {
         model->primary_str = "Enter PIN:";
     } else {
         model->primary_str = label;
