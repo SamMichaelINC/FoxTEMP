@@ -27,7 +27,8 @@ typedef struct {
     uint8_t selected_col;
     uint8_t pin_length;
     uint8_t pin_buffer[8]; 
-    bool is_confirm_mode;  
+    bool is_confirm_mode;
+    bool show_error;  
 } NumericPinModel;
 
 struct DesktopSettingsViewNumericPin {
@@ -46,7 +47,8 @@ static void desktop_settings_view_numeric_pin_draw_callback(Canvas* canvas, void
 
     canvas_set_font(canvas, FontPrimary);
     if(model->is_confirm_mode) {
-        canvas_draw_str_aligned(canvas, 59 / 2, 7, AlignCenter, AlignCenter, "Confirm:");
+        canvas_draw_str_aligned(canvas, 59 / 2, 7, AlignCenter, AlignCenter,
+        model->show_error ? "INCORRECT" : "Confirm:");
     } else {
         canvas_draw_str(canvas, 5, 11, "Enter PIN:");
     }
@@ -133,9 +135,14 @@ static bool desktop_settings_view_numeric_pin_input_callback(InputEvent* event, 
     if(event->type == InputTypeShort || event->type == InputTypeRepeat) {
         // Safe atomic lock: with_view_model automatically commits and releases locks safely
         with_view_model(
+
             instance->view,
             NumericPinModel* model,
             {
+                if(model->show_error) {
+                    model->show_error = false;
+                    model->pin_length = 0;
+                }
                 if(event->key == InputKeyUp) {
                     model->selected_row = (model->selected_row + KEY_ROWS - 1) % KEY_ROWS;
                     consumed = true;
@@ -234,6 +241,7 @@ void desktop_settings_view_numeric_pin_reset(DesktopSettingsViewNumericPin* inst
             model->selected_row = 0;
             model->selected_col = 0;
             model->pin_length = 0;
+            model->show_error = false;
             memset(model->pin_buffer, 0, sizeof(model->pin_buffer));
         },
         true
@@ -247,6 +255,19 @@ void desktop_settings_view_numeric_pin_set_mode(DesktopSettingsViewNumericPin* i
         NumericPinModel* model,
         {
             model->is_confirm_mode = is_confirm;
+        },
+        true
+    );
+}
+
+void desktop_settings_view_numeric_pin_set_error(DesktopSettingsViewNumericPin* instance, bool error) {
+    furi_assert(instance);
+    with_view_model(
+        instance->view,
+        NumericPinModel* model,
+        {
+            model->show_error = error;
+            model->pin_length = 0;
         },
         true
     );

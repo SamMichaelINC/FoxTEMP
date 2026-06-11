@@ -2,6 +2,8 @@
 #include "../views/desktop_settings_view_numeric_pin.h"
 #include "desktop_settings_scene.h"
 #include <furi.h>
+#include <notification/notification.h>
+#include <notification/notification_messages.h>
 #include <applications/services/desktop/helpers/pin_code.h>
 
 static uint8_t first_pass_digits[8];
@@ -13,6 +15,7 @@ static const InputKey numeric_to_key[10] = {
     InputKeyDown, InputKeyLeft, InputKeyUp, InputKeyRight,
     InputKeyDown, InputKeyLeft
 };
+
 enum {
     LocalSceneEventPinSubmitted,
     LocalSceneEventBackTriggered,
@@ -61,32 +64,23 @@ bool desktop_settings_scene_pin_setup_on_event(void* context, SceneManagerEvent 
                 desktop_settings_view_numeric_pin_get_pin(app->numeric_pin_view, confirmation_digits, &confirmation_len);
 
                 if(first_pass_len == confirmation_len && memcmp(first_pass_digits, confirmation_digits, first_pass_len) == 0) {
-                    
-                    // CRITICAL FIX: Actually load the confirmed digits into the app's pincode buffer!
                     memset(&app->pincode_buffer, 0, sizeof(DesktopPinCode));
                     for(uint8_t i = 0; i < first_pass_len; i++) {
                         app->pincode_buffer.data[i] = numeric_to_key[first_pass_digits[i] % 10];
                     }
                     app->pincode_buffer.length = first_pass_len;
-                    
+
                     Desktop* desktop_service = furi_record_open(RECORD_DESKTOP);
                     desktop_set_pin(desktop_service, &app->pincode_buffer);
                     furi_record_close(RECORD_DESKTOP);
-                    
+
                     fail_attempts = 0;
                     scene_manager_next_scene(app->scene_manager, DesktopSettingsAppScenePinSetupDone);
                 } else {
-                    // PIN MISMATCH: Increment attempt counter, save to internal escrow, and backup to SD
-                    fail_attempts++;
-                    
-                    FoxEscrowData escrow;
-                    memset(&escrow, 0, sizeof(FoxEscrowData));
-                    escrow.active_fail_count = fail_attempts;
-                    
-                    fox_escrow_save_state(&escrow); 
-                    fox_recovery_generate_file(fail_attempts);
-                    
-                    scene_manager_next_scene(app->scene_manager, DesktopSettingsAppScenePinError);
+                    NotificationApp* notif = furi_record_open(RECORD_NOTIFICATION);
+                    notification_message(notif, &sequence_single_vibro);
+                    furi_record_close(RECORD_NOTIFICATION);
+                    desktop_settings_view_numeric_pin_set_error(app->numeric_pin_view, true);
                 }
                 consumed = true;
             }

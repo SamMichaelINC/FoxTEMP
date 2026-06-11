@@ -33,6 +33,8 @@ typedef struct {
     uint8_t displayBatteryPercentage;
     uint8_t display_clock;
     FavoriteApp favorite_apps[FavoriteAppNumber];
+    uint8_t pin_max_attempts;
+    uint8_t pin_exceed_action;
 } DesktopSettings;
 
 void desktop_settings_load(DesktopSettings* settings);

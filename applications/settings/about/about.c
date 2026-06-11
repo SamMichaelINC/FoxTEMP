@@ -107,9 +107,9 @@ static DialogMessageButton foxfw_info_screen2(DialogsApp* dialogs, DialogMessage
 static DialogMessageButton foxfw_info_screen3(DialogsApp* dialogs, DialogMessage* message) {
      DialogMessageButton result;
 
-    const char* screen_header = "     Special Thanks\n";
+    const char* screen_header = "        Special Thanks\n";
 
-    const char* screen_text = "     Adam Alioa  (z4men)\n"
+    const char* screen_text = "         Adam Alioa  (z4men)\n"
                               "For his tireless support,\ncontributions and patience\nYou rock, Adam!";
     dialog_message_set_header(message, screen_header, 0, 0, AlignLeft, AlignTop);
     dialog_message_set_text(message, screen_text, 0, 11, AlignLeft, AlignTop);

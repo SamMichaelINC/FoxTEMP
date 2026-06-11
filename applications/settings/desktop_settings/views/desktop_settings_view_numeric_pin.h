@@ -22,4 +22,6 @@ void desktop_settings_view_numeric_pin_reset(DesktopSettingsViewNumericPin* inst
 
 void desktop_settings_view_numeric_pin_set_mode(DesktopSettingsViewNumericPin* instance, bool is_confirm);
 
+void desktop_settings_view_numeric_pin_set_error(DesktopSettingsViewNumericPin* instance, bool error);
+
 void desktop_settings_view_numeric_pin_get_pin(DesktopSettingsViewNumericPin* instance, uint8_t* pin_buffer, uint8_t* pin_length);
