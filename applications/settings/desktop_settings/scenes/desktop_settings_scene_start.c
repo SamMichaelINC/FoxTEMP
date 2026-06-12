@@ -7,13 +7,14 @@
 #include <power/power_service/power.h>
 
 typedef enum {
-    DesktopSettingsPinSetup = 0,
+    DesktopSettingsWallpaper = 0,
+    DesktopSettingsChangeName,
+    DesktopSettingsPinSetup,
     DesktopSettingsAutoLockDelay,
-    DesktopSettingsAutoPowerOff,
+    DesktopSettingsUsbInhibitAutoLock,
     DesktopSettingsBatteryDisplay,
     DesktopSettingsClockDisplay,
-    DesktopSettingsChangeName,
-    DesktopSettingsHappyMode,
+    DesktopSettingsLockDisconnect,
     DesktopSettingsFavoriteLeftShort,
     DesktopSettingsFavoriteLeftLong,
     DesktopSettingsFavoriteRightShort,
@@ -22,50 +23,34 @@ typedef enum {
 } DesktopSettingsEntry;
 
 #define AUTO_LOCK_DELAY_COUNT 9
-const char* const auto_lock_delay_text[AUTO_LOCK_DELAY_COUNT] = {
-    "OFF",
-    "10s",
-    "15s",
-    "30s",
-    "60s",
-    "90s",
-    "2min",
-    "5min",
-    "10min",
+static const char* const auto_lock_delay_text[AUTO_LOCK_DELAY_COUNT] = {
+    "OFF", "10s", "15s", "30s", "60s", "90s", "2min", "5min", "10min",
 };
-
-const uint32_t auto_lock_delay_value[AUTO_LOCK_DELAY_COUNT] =
+static const uint32_t auto_lock_delay_value[AUTO_LOCK_DELAY_COUNT] =
     {0, 10000, 15000, 30000, 60000, 90000, 120000, 300000, 600000};
 
-#define USB_INHIBIT_AUTO_LOCK_DELAY_COUNT 2
-
-const char* const usb_inhibit_auto_lock_delay_text[USB_INHIBIT_AUTO_LOCK_DELAY_COUNT] = {
-    "OFF",
-    "ON",
-};
-
-const uint32_t usb_inhibit_auto_lock_delay_value[USB_INHIBIT_AUTO_LOCK_DELAY_COUNT] = {0, 1};
+#define USB_INHIBIT_COUNT 2
+static const char* const usb_inhibit_text[USB_INHIBIT_COUNT] = {"OFF", "ON"};
+static const uint32_t usb_inhibit_value[USB_INHIBIT_COUNT] = {0, 1};
 
 #define CLOCK_ENABLE_COUNT 2
-const char* const clock_enable_text[CLOCK_ENABLE_COUNT] = {
-    "OFF",
-    "ON",
-};
-
-const uint32_t clock_enable_value[CLOCK_ENABLE_COUNT] = {0, 1};
+static const char* const clock_enable_text[CLOCK_ENABLE_COUNT] = {"OFF", "ON"};
+static const uint32_t clock_enable_value[CLOCK_ENABLE_COUNT] = {0, 1};
 
 #define BATTERY_VIEW_COUNT 6
-
-const char* const battery_view_count_text[BATTERY_VIEW_COUNT] =
+static const char* const battery_view_text[BATTERY_VIEW_COUNT] =
     {"Bar", "%", "Inv. %", "Retro 3", "Retro 5", "Bar %"};
-
-const uint32_t displayBatteryPercentage_value[BATTERY_VIEW_COUNT] = {
+static const uint32_t battery_view_value[BATTERY_VIEW_COUNT] = {
     DISPLAY_BATTERY_BAR,
     DISPLAY_BATTERY_PERCENT,
     DISPLAY_BATTERY_INVERTED_PERCENT,
     DISPLAY_BATTERY_RETRO_3,
     DISPLAY_BATTERY_RETRO_5,
     DISPLAY_BATTERY_BAR_PERCENT};
+
+#define LOCK_DISCONNECT_COUNT 2
+static const char* const lock_disconnect_text[LOCK_DISCONNECT_COUNT] = {"OFF", "ON"};
+static const uint32_t lock_disconnect_value[LOCK_DISCONNECT_COUNT] = {0, 1};
 
 static void desktop_settings_scene_start_var_list_enter_callback(void* context, uint32_t index) {
     DesktopSettingsApp* app = context;
@@ -75,15 +60,13 @@ static void desktop_settings_scene_start_var_list_enter_callback(void* context, 
 static void desktop_settings_scene_start_battery_view_changed(VariableItem* item) {
     DesktopSettingsApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
-
-    variable_item_set_current_value_text(item, battery_view_count_text[index]);
+    variable_item_set_current_value_text(item, battery_view_text[index]);
     app->settings.displayBatteryPercentage = index;
 }
 
 static void desktop_settings_scene_start_clock_enable_changed(VariableItem* item) {
     DesktopSettingsApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
-
     variable_item_set_current_value_text(item, clock_enable_text[index]);
     app->settings.display_clock = index;
 }
@@ -91,93 +74,93 @@ static void desktop_settings_scene_start_clock_enable_changed(VariableItem* item
 static void desktop_settings_scene_start_auto_lock_delay_changed(VariableItem* item) {
     DesktopSettingsApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
-
     variable_item_set_current_value_text(item, auto_lock_delay_text[index]);
     app->settings.auto_lock_delay_ms = auto_lock_delay_value[index];
 }
 
-static void desktop_settings_scene_start_usb_inhibit_auto_lock_delay_changed(VariableItem* item) {
+static void desktop_settings_scene_start_usb_inhibit_changed(VariableItem* item) {
     DesktopSettingsApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
+    variable_item_set_current_value_text(item, usb_inhibit_text[index]);
+    app->settings.usb_inhibit_auto_lock = usb_inhibit_value[index];
+}
 
-    variable_item_set_current_value_text(item, usb_inhibit_auto_lock_delay_text[index]);
-    app->settings.usb_inhibit_auto_lock = usb_inhibit_auto_lock_delay_value[index];
+static void desktop_settings_scene_start_lock_disconnect_changed(VariableItem* item) {
+    DesktopSettingsApp* app = variable_item_get_context(item);
+    uint8_t index = variable_item_get_current_value_index(item);
+    variable_item_set_current_value_text(item, lock_disconnect_text[index]);
+    app->settings.lock_ble_usb_disconnect = lock_disconnect_value[index];
 }
 
 void desktop_settings_scene_start_on_enter(void* context) {
     DesktopSettingsApp* app = context;
-    VariableItemList* variable_item_list = app->variable_item_list;
-
+    VariableItemList* list = app->variable_item_list;
     VariableItem* item;
     uint8_t value_index;
 
-    variable_item_list_add(variable_item_list, "PIN Setup", 1, NULL, NULL);
+    // 0 — Custom Wallpaper (button)
+    variable_item_list_add(list, "Custom Wallpaper", 0, NULL, NULL);
 
+    // 1 — Change Flipper Name (button)
+    variable_item_list_add(list, "Change Flipper Name", 0, NULL, app);
+
+    // 2 — PIN Setup (button)
+    variable_item_list_add(list, "PIN Setup", 0, NULL, NULL);
+
+    // 3 — Auto Lock Time
     item = variable_item_list_add(
-        variable_item_list,
-        "Auto Lock Time",
-        AUTO_LOCK_DELAY_COUNT,
-        desktop_settings_scene_start_auto_lock_delay_changed,
-        app);
-
+        list, "Auto Lock Time", AUTO_LOCK_DELAY_COUNT,
+        desktop_settings_scene_start_auto_lock_delay_changed, app);
     value_index = value_index_uint32(
         app->settings.auto_lock_delay_ms, auto_lock_delay_value, AUTO_LOCK_DELAY_COUNT);
     variable_item_set_current_value_index(item, value_index);
     variable_item_set_current_value_text(item, auto_lock_delay_text[value_index]);
 
-    // USB connection Inhibit autolock OFF|ON|with opened RPC session
+    // 4 — Auto Lock disarm by USB session
     item = variable_item_list_add(
-        variable_item_list,
-        "Auto Lock disarm by active USB session",
-        USB_INHIBIT_AUTO_LOCK_DELAY_COUNT,
-        desktop_settings_scene_start_usb_inhibit_auto_lock_delay_changed,
-        app);
-
+        list, "Auto Lock disarm by USB", USB_INHIBIT_COUNT,
+        desktop_settings_scene_start_usb_inhibit_changed, app);
     value_index = value_index_uint32(
-        app->settings.usb_inhibit_auto_lock,
-        usb_inhibit_auto_lock_delay_value,
-        USB_INHIBIT_AUTO_LOCK_DELAY_COUNT);
+        app->settings.usb_inhibit_auto_lock, usb_inhibit_value, USB_INHIBIT_COUNT);
     variable_item_set_current_value_index(item, value_index);
-    variable_item_set_current_value_text(item, usb_inhibit_auto_lock_delay_text[value_index]);
+    variable_item_set_current_value_text(item, usb_inhibit_text[value_index]);
 
+    // 5 — Battery View
     item = variable_item_list_add(
-        variable_item_list,
-        "Battery View",
-        BATTERY_VIEW_COUNT,
-        desktop_settings_scene_start_battery_view_changed,
-        app);
-
+        list, "Battery View", BATTERY_VIEW_COUNT,
+        desktop_settings_scene_start_battery_view_changed, app);
     value_index = value_index_uint32(
-        app->settings.displayBatteryPercentage,
-        displayBatteryPercentage_value,
-        BATTERY_VIEW_COUNT);
+        app->settings.displayBatteryPercentage, battery_view_value, BATTERY_VIEW_COUNT);
     variable_item_set_current_value_index(item, value_index);
-    variable_item_set_current_value_text(item, battery_view_count_text[value_index]);
+    variable_item_set_current_value_text(item, battery_view_text[value_index]);
 
+    // 6 — Show Clock
     item = variable_item_list_add(
-        variable_item_list,
-        "Show Clock",
-        CLOCK_ENABLE_COUNT,
-        desktop_settings_scene_start_clock_enable_changed,
-        app);
-
+        list, "Show Clock", CLOCK_ENABLE_COUNT,
+        desktop_settings_scene_start_clock_enable_changed, app);
     value_index =
         value_index_uint32(app->settings.display_clock, clock_enable_value, CLOCK_ENABLE_COUNT);
     variable_item_set_current_value_index(item, value_index);
     variable_item_set_current_value_text(item, clock_enable_text[value_index]);
 
-    variable_item_list_add(variable_item_list, "Change Flipper Name", 0, NULL, app);
+    // 7 — Disconnect on Lock (USB + BLE)
+    item = variable_item_list_add(
+        list, "Disconnect on Lock", LOCK_DISCONNECT_COUNT,
+        desktop_settings_scene_start_lock_disconnect_changed, app);
+    value_index = value_index_uint32(
+        app->settings.lock_ble_usb_disconnect, lock_disconnect_value, LOCK_DISCONNECT_COUNT);
+    variable_item_set_current_value_index(item, value_index);
+    variable_item_set_current_value_text(item, lock_disconnect_text[value_index]);
 
-    variable_item_list_add(variable_item_list, "Happy Mode", 1, NULL, NULL);
-
-    variable_item_list_add(variable_item_list, "Favorite App - Left Short", 1, NULL, NULL);
-    variable_item_list_add(variable_item_list, "Favorite App - Left Long", 1, NULL, NULL);
-    variable_item_list_add(variable_item_list, "Favorite App - Right Short", 1, NULL, NULL);
-    variable_item_list_add(variable_item_list, "Favorite App - Right Long", 1, NULL, NULL);
-    variable_item_list_add(variable_item_list, "Favorite App - Ok Long", 1, NULL, NULL);
+    // 8-12 — Favourite apps
+    variable_item_list_add(list, "Favourite - Left Short", 0, NULL, NULL);
+    variable_item_list_add(list, "Favourite - Left Long", 0, NULL, NULL);
+    variable_item_list_add(list, "Favourite - Right Short", 0, NULL, NULL);
+    variable_item_list_add(list, "Favourite - Right Long", 0, NULL, NULL);
+    variable_item_list_add(list, "Favourite - Ok Long", 0, NULL, NULL);
 
     variable_item_list_set_enter_callback(
-        variable_item_list, desktop_settings_scene_start_var_list_enter_callback, app);
+        list, desktop_settings_scene_start_var_list_enter_callback, app);
 
     view_dispatcher_switch_to_view(app->view_dispatcher, DesktopSettingsAppViewVarItemList);
 }
@@ -188,17 +171,14 @@ bool desktop_settings_scene_start_on_event(void* context, SceneManagerEvent even
 
     if(event.type == SceneManagerEventTypeCustom) {
         switch(event.event) {
-        case DesktopSettingsPinSetup:
-            scene_manager_next_scene(app->scene_manager, DesktopSettingsAppScenePinMenu);
+        case DesktopSettingsWallpaper:
+            scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneWallpaperSetup);
             break;
-
-            // case DesktopSettingsAutoLockDelay:
-            // case DesktopSettingsBatteryDisplay:
-            // case DesktopSettingsClockDisplay:
-            // Proces in default
-
         case DesktopSettingsChangeName:
             scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneChangeName);
+            break;
+        case DesktopSettingsPinSetup:
+            scene_manager_next_scene(app->scene_manager, DesktopSettingsAppScenePinMenu);
             break;
 
         case DesktopSettingsFavoriteLeftShort:
@@ -237,10 +217,6 @@ bool desktop_settings_scene_start_on_event(void* context, SceneManagerEvent even
             scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneFavorite);
             break;
 
-        case DesktopSettingsHappyMode:
-            scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneHappyMode);
-            break;
-
         default:
             break;
         }
@@ -254,7 +230,6 @@ void desktop_settings_scene_start_on_exit(void* context) {
     variable_item_list_reset(app->variable_item_list);
     desktop_settings_save(&app->settings);
 
-    // Trigger UI update in case we changed battery layout
     Power* power = furi_record_open(RECORD_POWER);
     power_trigger_ui_update(power);
     furi_record_close(RECORD_POWER);

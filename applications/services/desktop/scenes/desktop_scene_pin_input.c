@@ -15,9 +15,7 @@
 
 #define WRONG_PIN_HEADER_TIMEOUT 3000
 #define INPUT_PIN_VIEW_TIMEOUT   15000
-
-/* Hardcoded max configurations boundary reference until Phase 5 settings are exposed */
-#define MAX_ALLOWED_ATTEMPTS_LIMIT 5 
+#define HONEYPOT_SENTINEL        0xFF
 
 typedef struct {
     FuriTimer* timer;
@@ -57,24 +55,42 @@ static void desktop_scene_pin_input_done_callback(const DesktopPinCode* pin_code
 
     if(desktop_pin_code_check(pin_code)) {
         FoxEscrowData escrow;
+        memset(&escrow, 0, sizeof(FoxEscrowData));
         if(fox_escrow_load_and_verify(&escrow)) {
+            if(escrow.active_fail_count == HONEYPOT_SENTINEL) {
+                desktop_view_pin_input_lock_input(desktop->pin_input_view);
+                return;
+            }
             escrow.active_fail_count = 0;
             fox_escrow_save_state(&escrow);
         }
         view_dispatcher_send_custom_event(desktop->view_dispatcher, DesktopPinInputEventUnlocked);
     } else {
         FoxEscrowData escrow;
-        uint8_t fail_count = 1;
-        
+        memset(&escrow, 0, sizeof(FoxEscrowData));
+        uint8_t fail_count;
+
         if(fox_escrow_load_and_verify(&escrow)) {
+            if(escrow.active_fail_count == HONEYPOT_SENTINEL) {
+                desktop_view_pin_input_lock_input(desktop->pin_input_view);
+                return;
+            }
             escrow.active_fail_count++;
             fail_count = escrow.active_fail_count;
-            fox_escrow_save_state(&escrow);
+        } else {
+            memset(&escrow, 0, sizeof(FoxEscrowData));
+            escrow.active_fail_count = 1;
+            escrow.wipe_limit = desktop->settings.pin_max_attempts;
+            escrow.wipe_method = desktop->settings.pin_exceed_action;
+            fail_count = 1;
         }
-        
-        /* Check threshold logic to instantly flag the Fake Wiped Honeypot Trap */
-        if(fail_count >= MAX_ALLOWED_ATTEMPTS_LIMIT) {
+        fox_escrow_save_state(&escrow);
+        fox_recovery_generate_file(fail_count);
+
+        uint8_t limit = desktop->settings.pin_max_attempts;
+        if(limit > 0 && fail_count >= limit) {
             fox_escrow_trigger_honeypot_panic();
+            desktop_view_pin_input_lock_input(desktop->pin_input_view);
         } else {
             view_dispatcher_send_custom_event(
                 desktop->view_dispatcher, DesktopPinInputEventUnlockFailed);
@@ -92,13 +108,12 @@ static void desktop_scene_pin_input_update_wrong_count(DesktopScenePinInputState
     UNUSED(state);
     FoxEscrowData escrow;
     uint8_t current_fails = 0;
-    
     if(fox_escrow_load_and_verify(&escrow)) {
         current_fails = escrow.active_fail_count;
+        if(current_fails == HONEYPOT_SENTINEL) current_fails = 0;
     }
-    
-    /* Safely route counter variables directly to our alphanumeric telemetry parser matrix */
-    desktop_view_pin_input_update_telemetry(desktop->pin_input_view, current_fails, MAX_ALLOWED_ATTEMPTS_LIMIT);
+    desktop_view_pin_input_update_telemetry(
+        desktop->pin_input_view, current_fails, desktop->settings.pin_max_attempts);
 }
 
 void desktop_scene_pin_input_on_enter(void* context) {
@@ -118,14 +133,19 @@ void desktop_scene_pin_input_on_enter(void* context) {
         furi_timer_alloc(desktop_scene_pin_input_timer_callback, FuriTimerTypeOnce, desktop);
     scene_manager_set_scene_state(desktop->scene_manager, DesktopScenePinInput, (uint32_t)state);
 
-    desktop_view_pin_input_hide_pin(desktop->pin_input_view, true);
-    desktop_view_pin_input_set_label_button(desktop->pin_input_view, "OK");
-    
-    // FIX: Changed "Enter Alphanumeric PIN:" cleanly to "Enter PIN:" to avoid clipping!
-    desktop_view_pin_input_set_label_primary(desktop->pin_input_view, 14, 25, "Enter PIN:");
-    
-    desktop_scene_pin_input_update_wrong_count(state, desktop);
-    desktop_view_pin_input_reset_pin(desktop->pin_input_view);
+    FoxEscrowData startup_check;
+    memset(&startup_check, 0, sizeof(FoxEscrowData));
+    if(fox_escrow_load_and_verify(&startup_check) &&
+       startup_check.active_fail_count == HONEYPOT_SENTINEL) {
+        desktop_view_pin_input_lock_input(desktop->pin_input_view);
+    } else {
+        desktop_view_pin_input_unlock_input(desktop->pin_input_view);
+        desktop_view_pin_input_hide_pin(desktop->pin_input_view, true);
+        desktop_view_pin_input_set_label_button(desktop->pin_input_view, "OK");
+        desktop_view_pin_input_set_label_primary(desktop->pin_input_view, 14, 25, "Enter PIN:");
+        desktop_scene_pin_input_update_wrong_count(state, desktop);
+        desktop_view_pin_input_reset_pin(desktop->pin_input_view);
+    }
 
     view_dispatcher_switch_to_view(desktop->view_dispatcher, DesktopViewIdPinInput);
 }
@@ -136,7 +156,7 @@ bool desktop_scene_pin_input_on_event(void* context, SceneManagerEvent event) {
     uint32_t pin_timeout = 0;
     DesktopScenePinInputState* state = (DesktopScenePinInputState*)scene_manager_get_scene_state(
         desktop->scene_manager, DesktopScenePinInput);
-        
+
     if(event.type == SceneManagerEventTypeCustom) {
         switch(event.event) {
         case DesktopPinInputEventUnlockFailed:
@@ -147,11 +167,23 @@ bool desktop_scene_pin_input_on_event(void* context, SceneManagerEvent event) {
                     desktop->scene_manager, DesktopScenePinTimeout, pin_timeout);
                 scene_manager_next_scene(desktop->scene_manager, DesktopScenePinTimeout);
             } else {
+                desktop_pin_lock_error_notify();
                 desktop_scene_locked_light_red(true);
-                // FIX: Shortened the error string to fit comfortably inside the layout bounds
-                desktop_view_pin_input_set_label_primary(
-                    desktop->pin_input_view, 14, 25, "Invalid PIN!");
-                desktop_scene_pin_input_set_timer(desktop, true, WRONG_PIN_HEADER_TIMEOUT);
+
+                FoxEscrowData check;
+                uint8_t cur_fails = 0;
+                uint8_t limit = desktop->settings.pin_max_attempts;
+                if(fox_escrow_load_and_verify(&check)) cur_fails = check.active_fail_count;
+                bool final_warning = (limit > 0 && cur_fails > 0 && (cur_fails + 1) >= limit);
+
+                if(final_warning) {
+                    desktop_view_pin_input_set_label_primary(
+                        desktop->pin_input_view, 14, 25, "DATA WIPE!");
+                } else {
+                    desktop_view_pin_input_set_label_primary(
+                        desktop->pin_input_view, 14, 25, "Invalid PIN!");
+                    desktop_scene_pin_input_set_timer(desktop, true, WRONG_PIN_HEADER_TIMEOUT);
+                }
                 desktop_scene_pin_input_update_wrong_count(state, desktop);
                 desktop_view_pin_input_reset_pin(desktop->pin_input_view);
             }
@@ -159,7 +191,6 @@ bool desktop_scene_pin_input_on_event(void* context, SceneManagerEvent event) {
             break;
         case DesktopPinInputEventResetWrongPinLabel:
             desktop_scene_locked_light_red(false);
-            // FIX: Reverts cleanly back to "Enter PIN:"
             desktop_view_pin_input_set_label_primary(
                 desktop->pin_input_view, 14, 25, "Enter PIN:");
             desktop_scene_pin_input_update_wrong_count(state, desktop);

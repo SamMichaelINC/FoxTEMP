@@ -11,8 +11,8 @@ static uint8_t first_pass_len = 0;
 static uint8_t fail_attempts = 0;
 static bool confirmation_phase_active = false;
 static const InputKey numeric_to_key[10] = {
-    InputKeyDown, InputKeyLeft, InputKeyUp, InputKeyRight,
-    InputKeyDown, InputKeyLeft, InputKeyUp, InputKeyRight,
+    InputKeyDown, InputKeyLeft, InputKeyDown, InputKeyRight,
+    InputKeyDown, InputKeyLeft, InputKeyDown, InputKeyRight,
     InputKeyDown, InputKeyLeft
 };
 

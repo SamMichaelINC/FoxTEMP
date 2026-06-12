@@ -481,9 +481,23 @@ int32_t desktop_srv(void* p) {
 
     desktop_init_settings(desktop);
 
+    if(fox_recovery_check_and_reset()) {
+        FoxEscrowData recovery_escrow;
+        memset(&recovery_escrow, 0, sizeof(FoxEscrowData));
+        if(fox_escrow_load_and_verify(&recovery_escrow)) {
+            recovery_escrow.active_fail_count = 0;
+            fox_escrow_save_state(&recovery_escrow);
+        }
+    }
+
     scene_manager_next_scene(desktop->scene_manager, DesktopSceneMain);
 
+    bool honeypot_active = false;
     if(desktop_pin_code_is_set()) {
+        FoxEscrowData hcheck;
+        memset(&hcheck, 0, sizeof(FoxEscrowData));
+        honeypot_active = fox_escrow_load_and_verify(&hcheck) &&
+                          (hcheck.active_fail_count == 0xFF);
         desktop_lock(desktop);
     } else {
         CliVcp* cli_vcp = furi_record_open(RECORD_CLI_VCP);
@@ -491,7 +505,7 @@ int32_t desktop_srv(void* p) {
         furi_record_close(RECORD_CLI_VCP);
     }
 
-    if(storage_file_exists(desktop->storage, SLIDESHOW_FS_PATH)) {
+    if(!honeypot_active && storage_file_exists(desktop->storage, SLIDESHOW_FS_PATH)) {
         scene_manager_next_scene(desktop->scene_manager, DesktopSceneSlideshow);
     }
 

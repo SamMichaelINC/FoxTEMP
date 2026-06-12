@@ -27,6 +27,11 @@ static bool desktop_settings_back_event_callback(void* context) {
 DesktopSettingsApp* desktop_settings_app_alloc(void) {
     DesktopSettingsApp* app = malloc(sizeof(DesktopSettingsApp));
 
+    // CRITICAL FIX: Load settings from flash before building the UI.
+    // Without this, app->settings is uninitialised and every toggle shows its
+    // default (zero) value every time Fox Settings is opened.
+    desktop_settings_load(&app->settings);
+
     app->gui = furi_record_open(RECORD_GUI);
     app->dialogs = furi_record_open(RECORD_DIALOGS);
     app->view_dispatcher = view_dispatcher_alloc();
@@ -43,13 +48,12 @@ DesktopSettingsApp* desktop_settings_app_alloc(void) {
     app->popup = popup_alloc();
     app->submenu = submenu_alloc();
     app->variable_item_list = variable_item_list_alloc();
-    
+
     app->pin_setup_howto_view = desktop_settings_view_pin_setup_howto_alloc();
     app->pin_setup_howto2_view = desktop_settings_view_pin_setup_howto2_alloc();
     app->numeric_pin_view = desktop_settings_view_numeric_pin_alloc();
     app->dialog_ex = dialog_ex_alloc();
 
-    // FIX: Initialize the view index pointer so the Scene Manager targets our custom PIN view!
     app->pin_menu_idx = DesktopSettingsAppViewIdPinInput;
 
     view_dispatcher_add_view(
@@ -60,13 +64,12 @@ DesktopSettingsApp* desktop_settings_app_alloc(void) {
         variable_item_list_get_view(app->variable_item_list));
     view_dispatcher_add_view(
         app->view_dispatcher, DesktopSettingsAppViewIdPopup, popup_get_view(app->popup));
-    
-    /* We bind our custom soft-curved numeric view directly to the main input ID route */
+
     view_dispatcher_add_view(
         app->view_dispatcher,
         DesktopSettingsAppViewIdPinInput,
         desktop_settings_view_numeric_pin_get_view(app->numeric_pin_view));
-        
+
     view_dispatcher_add_view(
         app->view_dispatcher,
         DesktopSettingsAppViewIdPinSetupHowto,
@@ -78,7 +81,6 @@ DesktopSettingsApp* desktop_settings_app_alloc(void) {
     view_dispatcher_add_view(
         app->view_dispatcher, DesktopSettingsAppViewDialogEx, dialog_ex_get_view(app->dialog_ex));
 
-    // Text Input
     app->text_input = text_input_alloc();
     view_dispatcher_add_view(
         app->view_dispatcher,
@@ -119,20 +121,20 @@ void desktop_settings_app_free(DesktopSettingsApp* app) {
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewIdPinSetupHowto2);
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewDialogEx);
     view_dispatcher_remove_view(app->view_dispatcher, DesktopSettingsAppViewTextInput);
-    
+
     text_input_free(app->text_input);
     variable_item_list_free(app->variable_item_list);
     submenu_free(app->submenu);
     popup_free(app->popup);
-    
+
     desktop_settings_view_pin_setup_howto_free(app->pin_setup_howto_view);
     desktop_settings_view_pin_setup_howto2_free(app->pin_setup_howto2_view);
     desktop_settings_view_numeric_pin_free(app->numeric_pin_view);
     dialog_ex_free(app->dialog_ex);
-    
+
     view_dispatcher_free(app->view_dispatcher);
     scene_manager_free(app->scene_manager);
-    
+
     furi_record_close(RECORD_DIALOGS);
     furi_record_close(RECORD_GUI);
     free(app);
@@ -143,16 +145,19 @@ void desktop_settings_app_free(DesktopSettingsApp* app) {
     }
 }
 
-// Global application entry point executed by the OS
 int32_t desktop_settings_app(void* p) {
     UNUSED(p);
 
     DesktopSettingsApp* app = desktop_settings_app_alloc();
-    
-    // Start up your standard state-machine, landing beautifully on your main list page
     scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneStart);
     view_dispatcher_run(app->view_dispatcher);
-
     desktop_settings_app_free(app);
+
+    // Push updated settings to the live desktop service so clock and other
+    // viewport-driven settings take effect immediately without a restart.
+    Desktop* desktop_svc = furi_record_open(RECORD_DESKTOP);
+    desktop_api_set_settings(desktop_svc, &app->settings);
+    furi_record_close(RECORD_DESKTOP);
+
     return 0;
 }

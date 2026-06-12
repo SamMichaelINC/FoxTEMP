@@ -2,6 +2,11 @@
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 
+:: Clean up any leftover temporary compilation logs from previous runs
+if exist "%temp%\compile_usb.log" del /f /q "%temp%\compile_usb.log" >nul 2>&1
+if exist "%temp%\compile_upd.log" del /f /q "%temp%\compile_upd.log" >nul 2>&1
+
+
 :MENU
 cls
 echo ===================================================
@@ -47,20 +52,20 @@ call fbt -c
 
 :LOOP_LVEUSB
 echo Running live USB flash...
-:: Clear history buffer so we only check the upcoming command
-doskey /reinstall >nul 2>&1
 
-:: Runs completely native and streams live with 0 buffering or file locks
-call fbt flash_usb_full COMPACT=1 DEBUG=0 FORCE=1
+:: Run fbt live and save to the log file
+powershell -Command "cmd.exe /c fbt flash_usb_full COMPACT=1 DEBUG=0 FORCE=1 | Tee-Object -FilePath '%temp%\compile_usb.log'"
 
-:: Extract the screen output from the console memory buffer and check for either error word
-doskey /history | findstr /I "Permission Denied" >nul
+:: Use PowerShell to check the Unicode file for the words Permission or Denied
+powershell -Command "if (Select-String -Path '%temp%\compile_usb.log' -Pattern 'Permission', 'Denied' -Quiet) { exit 0 } else { exit 1 }"
 if %errorlevel%==0 (
-    echo.
-    echo ⚠️ Permission or Denied detected! Retrying command...
-    echo.
-    goto LOOP_LVEUSB
+ echo.
+ echo Permission or Denied detected! Retrying command...
+ echo.
+ del /f /q "%temp%\compile_usb.log" >nul 2>&1
+ goto LOOP_LVEUSB
 )
+del /f /q "%temp%\compile_usb.log" >nul 2>&1
 echo.
 echo Press any key to return to Master Menu...
 pause >nul
@@ -78,20 +83,20 @@ call fbt -c
 
 :LOOP_UPDPKG
 echo Running updater package...
-:: Clear history buffer so we only check the upcoming command
-doskey /reinstall >nul 2>&1
 
-:: Runs completely native and streams live with 0 buffering or file locks
-call fbt updater_package COMPACT=1 DEBUG=0 FORCE=1
+:: Run fbt live and save to the log file
+powershell -Command "cmd.exe /c fbt updater_package COMPACT=1 DEBUG=0 FORCE=1 | Tee-Object -FilePath '%temp%\compile_upd.log'"
 
-:: Extract the screen output from the console memory buffer and check for either error word
-doskey /history | findstr /I "Permission Denied" >nul
+:: Use PowerShell to check the Unicode file for the words Permission or Denied
+powershell -Command "if (Select-String -Path '%temp%\compile_upd.log' -Pattern 'Permission', 'Denied' -Quiet) { exit 0 } else { exit 1 }"
 if %errorlevel%==0 (
-    echo.
-    echo ⚠️ Permission or Denied detected! Retrying command...
-    echo.
-    goto LOOP_UPDPKG
+ echo.
+ echo Permission or Denied detected! Retrying command...
+ echo.
+ del /f /q "%temp%\compile_upd.log" >nul 2>&1
+ goto LOOP_UPDPKG
 )
+del /f /q "%temp%\compile_upd.log" >nul 2>&1
 echo.
 echo Press any key to return to Master Menu...
 pause >nul

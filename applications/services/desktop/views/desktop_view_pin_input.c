@@ -64,37 +64,21 @@ typedef struct {
 } DesktopViewPinInputModel;
 
 static void desktop_view_pin_input_rebuild_pin(DesktopViewPinInputModel* model) {
+    static const InputKey digit_to_key[10] = {
+        InputKeyDown,   // 0
+        InputKeyLeft,   // 1
+        InputKeyDown,   // 2  (was InputKeyUp=0, changed to avoid null byte)
+        InputKeyRight,  // 3
+        InputKeyDown,   // 4
+        InputKeyLeft,   // 5
+        InputKeyDown,   // 6  (was InputKeyUp=0, changed to avoid null byte)
+        InputKeyRight,  // 7
+        InputKeyDown,   // 8
+        InputKeyLeft,   // 9
+    };
     model->pin.length = 0;
-    for(uint8_t i = 0; i < model->typed_digits_len; i++) {
-        uint8_t current_digit = model->typed_digits[i];
-        if(model->pin.length >= 12) break;
-
-        if(current_digit == 1) {
-            model->pin.data[model->pin.length++] = InputKeyLeft;
-        } else if(current_digit == 2) {
-            model->pin.data[model->pin.length++] = InputKeyUp;
-        } else if(current_digit == 3) {
-            model->pin.data[model->pin.length++] = InputKeyRight;
-        } else if(current_digit == 4) {
-            model->pin.data[model->pin.length++] = InputKeyLeft;
-            if(model->pin.length < 12) model->pin.data[model->pin.length++] = InputKeyLeft;
-        } else if(current_digit == 5) {
-            model->pin.data[model->pin.length++] = InputKeyOk;
-        } else if(current_digit == 6) {
-            model->pin.data[model->pin.length++] = InputKeyRight;
-            if(model->pin.length < 12) model->pin.data[model->pin.length++] = InputKeyRight;
-        } else if(current_digit == 7) {
-            model->pin.data[model->pin.length++] = InputKeyLeft;
-            if(model->pin.length < 12) model->pin.data[model->pin.length++] = InputKeyDown;
-        } else if(current_digit == 8) {
-            model->pin.data[model->pin.length++] = InputKeyDown;
-        } else if(current_digit == 9) {
-            model->pin.data[model->pin.length++] = InputKeyRight;
-            if(model->pin.length < 12) model->pin.data[model->pin.length++] = InputKeyDown;
-        } else if(current_digit == 0) {
-            model->pin.data[model->pin.length++] = InputKeyDown;
-            if(model->pin.length < 12) model->pin.data[model->pin.length++] = InputKeyDown;
-        }
+    for(uint8_t i = 0; i < model->typed_digits_len && model->pin.length < MAX_PIN_LENGTH; i++) {
+        model->pin.data[model->pin.length++] = (char)digit_to_key[model->typed_digits[i] % 10];
     }
 }
 
@@ -200,15 +184,15 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
     
     canvas_set_font(canvas, FontPrimary);
     
-    if(model->locked_input) {
+        if(model->locked_input) {
         canvas_draw_icon(canvas, 2, 0, &I_fox_64x64);
         canvas_set_font(canvas, FontPrimary);
-        canvas_draw_str(canvas, 68, 12, "Device Blocked");
+        canvas_draw_str(canvas, 68, 12, "LOCKED!");
         canvas_set_font(canvas, FontSecondary);
-        canvas_draw_str(canvas, 68, 26, "Wipe Limit reached.");
-        canvas_draw_str(canvas, 68, 38, "Please perform a");
-        canvas_draw_str(canvas, 68, 50, "Full Factory Reset");
-        canvas_draw_str(canvas, 68, 62, "to restore access.");
+        canvas_draw_str(canvas, 68, 26, "Incorrect PIN");
+        canvas_draw_str(canvas, 68, 38, "Attempts exceeded.");
+        canvas_draw_str(canvas, 68, 50, "All Data has");
+        canvas_draw_str(canvas, 68, 62, "been wiped.");
         return;
     }
 
@@ -293,7 +277,7 @@ static void desktop_view_pin_input_draw(Canvas* canvas, void* context) {
         char telemetry_str[32];
         
         if((model->current_fail_count + 1) >= model->max_allowed_attempts) {
-            snprintf(telemetry_str, sizeof(telemetry_str), "LAST ATTEMPT!");
+            snprintf(telemetry_str, sizeof(telemetry_str), "DATA WIPE");
         } else {
             snprintf(telemetry_str, sizeof(telemetry_str), "Attempt %d/%d", 
                      model->current_fail_count, model->max_allowed_attempts);
@@ -340,7 +324,7 @@ DesktopViewPinInput* desktop_view_pin_input_alloc(void) {
     model->selected_row = 0;
     model->selected_col = 0;
     model->current_fail_count = 0;
-    model->max_allowed_attempts = 5;
+    model->max_allowed_attempts = 0;
     view_commit_model(pin_input->view, false);
 
     return pin_input;

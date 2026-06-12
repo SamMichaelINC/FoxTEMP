@@ -35,6 +35,8 @@ typedef struct {
     FavoriteApp favorite_apps[FavoriteAppNumber];
     uint8_t pin_max_attempts;
     uint8_t pin_exceed_action;
+    uint8_t wallpaper_enabled;
+    uint8_t lock_ble_usb_disconnect;
 } DesktopSettings;
 
 void desktop_settings_load(DesktopSettings* settings);
