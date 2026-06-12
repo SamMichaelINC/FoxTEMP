@@ -1,0 +1,13 @@
+App(
+    appid="fox_setup",
+    name="Fox Setup",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="fox_setup_app",
+    cdefines=["APP_FOX_SETUP"],
+    requires=["gui"],
+    stack_size=2 * 1024,
+    order=10,
+    fap_category="System",
+    fap_icon_assets="images",
+    fap_description="First Boot Welcome Wizard for FoxFW.",
+)
