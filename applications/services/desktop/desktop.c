@@ -1,12 +1,9 @@
 #include "desktop_i.h"
 
 #include <cli/cli_vcp.h>
-
 #include <gui/gui_i.h>
-
 #include <locale/locale.h>
 #include <storage/storage.h>
-
 #include <assets_icons.h>
 
 #include "scenes/desktop_scene.h"
@@ -16,10 +13,14 @@
 
 #define TAG "Desktop"
 
+#define WALLPAPER_PATH "/ext/wallpaper.xbm"
+#define WALLPAPER_SIZE 1024
+
 static void desktop_auto_lock_arm(Desktop*);
 static void desktop_auto_lock_inhibit(Desktop*);
 static void desktop_start_auto_lock_timer(Desktop*);
 static void desktop_apply_settings(Desktop*);
+static void desktop_load_wallpaper(Desktop*);
 
 static void desktop_loader_callback(const void* message, void* context) {
     furi_assert(context);
@@ -90,12 +91,8 @@ static void desktop_clock_draw_callback(Canvas* canvas, void* context) {
 
     uint8_t hour = desktop->clock.hour;
     if(desktop->clock.format_12) {
-        if(hour > 12) {
-            hour -= 12;
-        }
-        if(hour == 0) {
-            hour = 12;
-        }
+        if(hour > 12) hour -= 12;
+        if(hour == 0) hour = 12;
     }
 
     char buffer[20];
@@ -105,17 +102,27 @@ static void desktop_clock_draw_callback(Canvas* canvas, void* context) {
         snprintf(buffer, sizeof(buffer), "%02u:%02u", hour, desktop->clock.minute);
     }
 
-    view_port_set_width(
-        desktop->clock_viewport,
-        canvas_string_width(canvas, buffer) - 1 + (desktop->clock.minute % 10 == 1));
-
-    canvas_draw_str_aligned(canvas, 0, 8, AlignLeft, AlignBottom, buffer);
+    canvas_draw_str_aligned(
+        canvas, canvas_width(canvas) / 2, 8, AlignCenter, AlignBottom, buffer);
 }
 
 static void desktop_stealth_mode_icon_draw_callback(Canvas* canvas, void* context) {
     UNUSED(context);
     furi_assert(canvas);
     canvas_draw_icon(canvas, 0, 0, &I_Muted_8x8);
+}
+
+// Wallpaper view draw callback.
+// NOTE: this is a VIEW draw callback — second param is the MODEL, not context.
+// We store a Desktop* inside the model so we can access settings and data.
+static void desktop_wallpaper_draw_callback(Canvas* canvas, void* model) {
+    if(!model) return;
+    Desktop* desktop = *(Desktop**)model;
+
+    if(desktop->wallpaper_data && desktop->settings.wallpaper_enabled) {
+        canvas_clear(canvas);
+        canvas_draw_xbm(canvas, 0, 0, 128, 64, desktop->wallpaper_data);
+    }
 }
 
 static bool desktop_custom_event_callback(void* context, uint32_t event) {
@@ -126,11 +133,8 @@ static bool desktop_custom_event_callback(void* context, uint32_t event) {
         if(animation_manager_is_animation_loaded(desktop->animation_manager)) {
             animation_manager_unload_and_stall_animation(desktop->animation_manager);
         }
-
         desktop_auto_lock_inhibit(desktop);
-
         desktop->app_running = true;
-
         furi_semaphore_release(desktop->animation_semaphore);
 
     } else if(event == DesktopGlobalAfterAppFinished) {
@@ -140,11 +144,9 @@ static bool desktop_custom_event_callback(void* context, uint32_t event) {
 
     } else if(event == DesktopGlobalAutoLock) {
         if(!desktop->app_running && !desktop->locked) {
-            // Disable AutoLock if usb_inhibit_autolock option enabled and device have active USB session.
             if((desktop->settings.usb_inhibit_auto_lock) && (furi_hal_usb_is_locked())) {
                 return (0);
             }
-
             desktop_lock(desktop);
         }
     } else if(event == DesktopGlobalSaveSettings) {
@@ -220,20 +222,94 @@ static void desktop_auto_lock_inhibit(Desktop* desktop) {
 static void desktop_clock_timer_callback(void* context) {
     furi_assert(context);
     Desktop* desktop = context;
+    desktop_clock_update(desktop);
+}
 
-    const bool clock_enabled = gui_active_view_port_count(desktop->gui, GuiLayerStatusBarLeft) < 6;
+// Convert two ASCII hex characters to a byte value.
+static uint8_t desktop_hex2byte(char hi, char lo) {
+    uint8_t h = (hi >= 'a') ? (uint8_t)(hi - 'a' + 10) :
+                (hi >= 'A') ? (uint8_t)(hi - 'A' + 10) : (uint8_t)(hi - '0');
+    uint8_t l = (lo >= 'a') ? (uint8_t)(lo - 'a' + 10) :
+                (lo >= 'A') ? (uint8_t)(lo - 'A' + 10) : (uint8_t)(lo - '0');
+    return (h << 4) | l;
+}
 
-    if(clock_enabled) {
-        desktop_clock_update(desktop);
+// Parses a standard text-format XBM file into a raw 1024-byte bitmap.
+// XBM text files look like:
+//   #define name_width 128
+//   #define name_height 64
+//   static unsigned char name_bits[] = { 0x00, 0xff, ... };
+// We scan for the opening '{' then pull every "0xNN" value into the output buffer.
+static void desktop_load_wallpaper(Desktop* desktop) {
+    furi_assert(desktop);
+
+    if(desktop->wallpaper_data) {
+        free(desktop->wallpaper_data);
+        desktop->wallpaper_data = NULL;
     }
 
-    view_port_enabled_set(desktop->clock_viewport, clock_enabled);
+    if(!desktop->settings.wallpaper_enabled) return;
+
+    File* file = storage_file_alloc(desktop->storage);
+    if(!storage_file_open(file, WALLPAPER_PATH, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        storage_file_free(file);
+        return;
+    }
+
+    uint8_t* out = malloc(WALLPAPER_SIZE);
+    size_t  count = 0;
+
+    // State machine: 0=scan '{', 1=scan '0', 2=expect 'x', 3=first hex digit, 4=second hex digit
+    uint8_t state = 0;
+    char    hi_digit = 0;
+    bool    finished = false;
+
+    uint8_t  chunk[256];
+    uint16_t n;
+
+    while(!finished && count < WALLPAPER_SIZE &&
+          (n = storage_file_read(file, chunk, sizeof(chunk))) > 0) {
+        for(uint16_t i = 0; i < n && count < WALLPAPER_SIZE && !finished; i++) {
+            char c = (char)chunk[i];
+            switch(state) {
+            case 0:
+                if(c == '{') state = 1;
+                break;
+            case 1:
+                if(c == '}') { finished = true; break; }
+                if(c == '0') state = 2;
+                break;
+            case 2:
+                state = (c == 'x' || c == 'X') ? 3 : 1;
+                break;
+            case 3:
+                hi_digit = c;
+                state = 4;
+                break;
+            case 4:
+                out[count++] = desktop_hex2byte(hi_digit, c);
+                state = 1;
+                break;
+            }
+        }
+    }
+
+    storage_file_close(file);
+    storage_file_free(file);
+
+    if(count == WALLPAPER_SIZE) {
+        desktop->wallpaper_data = out;
+    } else {
+        free(out);
+        desktop->wallpaper_data = NULL;
+    }
 }
 
 static void desktop_apply_settings(Desktop* desktop) {
     desktop->in_transition = true;
 
     desktop_clock_reconfigure(desktop);
+    desktop_load_wallpaper(desktop);
 
     if(!desktop->app_running && !desktop->locked) {
         desktop_auto_lock_arm(desktop);
@@ -256,6 +332,8 @@ static void desktop_init_settings(Desktop* desktop) {
 
 static Desktop* desktop_alloc(void) {
     Desktop* desktop = malloc(sizeof(Desktop));
+
+    desktop->wallpaper_data = NULL;
 
     desktop->animation_semaphore = furi_semaphore_alloc(1, 0);
     desktop->animation_manager = animation_manager_alloc();
@@ -282,12 +360,27 @@ static Desktop* desktop_alloc(void) {
     desktop->pin_input_view = desktop_view_pin_input_alloc();
     desktop->pin_timeout_view = desktop_view_pin_timeout_alloc();
     desktop->slideshow_view = desktop_view_slideshow_alloc();
+    desktop->clock_lock_view = desktop_clock_lock_alloc();
 
     desktop->main_view_stack = view_stack_alloc();
     desktop->main_view = desktop_main_alloc();
     View* dolphin_view = animation_manager_get_animation_view(desktop->animation_manager);
+
+    // Wallpaper view: sits between dolphin and the locked overlay.
+    // When enabled it clears and redraws with the XBM, replacing the dolphin output.
+    // Uses a model (Desktop**) so the VIEW draw callback can access settings/data.
+    desktop->wallpaper_view = view_alloc();
+    view_allocate_model(desktop->wallpaper_view, ViewModelTypeLocking, sizeof(Desktop*));
+    with_view_model(
+        desktop->wallpaper_view,
+        Desktop** model,
+        { *model = desktop; },
+        false);
+    view_set_draw_callback(desktop->wallpaper_view, desktop_wallpaper_draw_callback);
+
     view_stack_add_view(desktop->main_view_stack, desktop_main_get_view(desktop->main_view));
     view_stack_add_view(desktop->main_view_stack, dolphin_view);
+    view_stack_add_view(desktop->main_view_stack, desktop->wallpaper_view);
     view_stack_add_view(
         desktop->main_view_stack, desktop_view_locked_get_view(desktop->locked_view));
 
@@ -324,6 +417,10 @@ static Desktop* desktop_alloc(void) {
         desktop->view_dispatcher,
         DesktopViewIdSlideshow,
         desktop_view_slideshow_get_view(desktop->slideshow_view));
+    view_dispatcher_add_view(
+        desktop->view_dispatcher,
+        DesktopViewIdClockLock,
+        desktop_clock_lock_get_view(desktop->clock_lock_view));
 
     desktop->lock_icon_viewport = view_port_alloc();
     view_port_set_width(desktop->lock_icon_viewport, icon_get_width(&I_Lock_7x8));
@@ -333,10 +430,10 @@ static Desktop* desktop_alloc(void) {
     gui_add_view_port(desktop->gui, desktop->lock_icon_viewport, GuiLayerStatusBarLeft);
 
     desktop->clock_viewport = view_port_alloc();
-    view_port_set_width(desktop->clock_viewport, 25);
+    view_port_set_width(desktop->clock_viewport, 50);
     view_port_draw_callback_set(desktop->clock_viewport, desktop_clock_draw_callback, desktop);
     view_port_enabled_set(desktop->clock_viewport, false);
-    gui_add_view_port(desktop->gui, desktop->clock_viewport, GuiLayerStatusBarRight);
+    gui_add_view_port(desktop->gui, desktop->clock_viewport, GuiLayerStatusBarCenter);
 
     desktop->stealth_mode_icon_viewport = view_port_alloc();
     view_port_set_width(desktop->stealth_mode_icon_viewport, icon_get_width(&I_Muted_8x8));
@@ -376,7 +473,7 @@ void desktop_lock(Desktop* desktop) {
 
     furi_hal_rtc_set_flag(FuriHalRtcFlagLock);
 
-    if(desktop_pin_code_is_set()) {
+    if(desktop_pin_code_is_set() || desktop->settings.lock_ble_usb_disconnect) {
         CliVcp* cli_vcp = furi_record_open(RECORD_CLI_VCP);
         cli_vcp_disable(cli_vcp);
         furi_record_close(RECORD_CLI_VCP);
@@ -406,7 +503,7 @@ void desktop_unlock(Desktop* desktop) {
     furi_hal_rtc_reset_flag(FuriHalRtcFlagLock);
     furi_hal_rtc_set_pin_fails(0);
 
-    if(desktop_pin_code_is_set()) {
+    if(desktop_pin_code_is_set() || desktop->settings.lock_ble_usb_disconnect) {
         CliVcp* cli_vcp = furi_record_open(RECORD_CLI_VCP);
         cli_vcp_enable(cli_vcp);
         furi_record_close(RECORD_CLI_VCP);
@@ -455,14 +552,12 @@ void desktop_api_reload_settings(Desktop* instance) {
 void desktop_api_get_settings(Desktop* instance, DesktopSettings* settings) {
     furi_assert(instance);
     furi_assert(settings);
-
     *settings = instance->settings;
 }
 
 void desktop_api_set_settings(Desktop* instance, const DesktopSettings* settings) {
     furi_assert(instance);
     furi_assert(settings);
-
     instance->settings = *settings;
     view_dispatcher_send_custom_event(instance->view_dispatcher, DesktopGlobalSaveSettings);
 }
@@ -472,7 +567,6 @@ int32_t desktop_srv(void* p) {
 
     if(furi_hal_rtc_get_boot_mode() != FuriHalRtcBootModeNormal) {
         FURI_LOG_W(TAG, "Skipping start in special boot mode");
-
         furi_thread_suspend(furi_thread_get_current_id());
         return 0;
     }
@@ -524,7 +618,6 @@ int32_t desktop_srv(void* p) {
             "Secure Enclave verification failed: total %hhu, valid %hhu",
             keys_total,
             keys_valid);
-
         scene_manager_next_scene(desktop->scene_manager, DesktopSceneSecureEnclave);
     }
 

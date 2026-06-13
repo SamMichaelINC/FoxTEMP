@@ -9,7 +9,6 @@
 #include <desktop/desktop_settings.h>
 
 #define WALLPAPER_PATH "/ext/wallpaper.xbm"
-#define WALLPAPER_SIZE 1024
 
 typedef enum {
     WallpaperStatusNotFound,
@@ -17,6 +16,8 @@ typedef enum {
     WallpaperStatusReady,
 } WallpaperFileStatus;
 
+// Validates by reading the XBM text header and checking the width/height defines.
+// Text XBM format: "#define <name>_width 128" and "#define <name>_height 64"
 static WallpaperFileStatus wallpaper_check_file(void) {
     Storage* storage = furi_record_open(RECORD_STORAGE);
 
@@ -26,17 +27,29 @@ static WallpaperFileStatus wallpaper_check_file(void) {
     }
 
     File* file = storage_file_alloc(storage);
-    bool opened = storage_file_open(file, WALLPAPER_PATH, FSAM_READ, FSOM_OPEN_EXISTING);
-    uint64_t size = 0;
-    if(opened) {
-        size = storage_file_size(file);
+    WallpaperFileStatus status = WallpaperStatusWrongSize;
+
+    if(storage_file_open(file, WALLPAPER_PATH, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        char header[220];
+        uint16_t n = storage_file_read(file, header, sizeof(header) - 1);
+        header[n] = '\0';
         storage_file_close(file);
+
+        char* w = strstr(header, "_width ");
+        char* h = strstr(header, "_height ");
+
+        if(w && h) {
+            int width  = atoi(w + 7);
+            int height = atoi(h + 8);
+            if(width == 128 && height == 64) {
+                status = WallpaperStatusReady;
+            }
+        }
     }
+
     storage_file_free(file);
     furi_record_close(RECORD_STORAGE);
-
-    if(!opened) return WallpaperStatusNotFound;
-    return (size == WALLPAPER_SIZE) ? WallpaperStatusReady : WallpaperStatusWrongSize;
+    return status;
 }
 
 static void wallpaper_dialog_result_callback(DialogExResult result, void* context) {
@@ -51,6 +64,11 @@ static void wallpaper_toggle_changed(VariableItem* item) {
     variable_item_set_current_value_text(item, idx ? "ON" : "OFF");
     app->settings.wallpaper_enabled = idx;
     desktop_settings_save(&app->settings);
+}
+
+static void wallpaper_list_enter_noop(void* context, uint32_t index) {
+    UNUSED(context);
+    UNUSED(index);
 }
 
 void desktop_settings_scene_wallpaper_setup_on_enter(void* context) {
@@ -71,13 +89,14 @@ void desktop_settings_scene_wallpaper_setup_on_enter(void* context) {
         variable_item_set_current_value_text(
             toggle, app->settings.wallpaper_enabled ? "ON" : "OFF");
 
-        variable_item_list_set_enter_callback(list, NULL, NULL);
+        // noop callback — required non-NULL by variable_item_list_set_enter_callback
+        variable_item_list_set_enter_callback(list, wallpaper_list_enter_noop, app);
         view_dispatcher_switch_to_view(app->view_dispatcher, DesktopSettingsAppViewVarItemList);
 
     } else {
         DialogEx* dialog = app->dialog_ex;
         dialog_ex_reset(dialog);
-        dialog_ex_set_header(dialog, "Custom Wallpaper", 64, 3, AlignCenter, AlignTop);
+        dialog_ex_set_header(dialog, "Custom Wallpaper", 64, 2, AlignCenter, AlignTop);
         dialog_ex_set_left_button_text(dialog, "Back");
         dialog_ex_set_result_callback(dialog, wallpaper_dialog_result_callback);
         dialog_ex_set_context(dialog, app);
@@ -85,13 +104,13 @@ void desktop_settings_scene_wallpaper_setup_on_enter(void* context) {
         if(status == WallpaperStatusNotFound) {
             dialog_ex_set_text(
                 dialog,
-                "wallpaper.xbm\nNOT FOUND\nin SD root.\n\n128x64px, 1024 bytes",
-                64, 22, AlignCenter, AlignTop);
+                "File: wallpaper.xbm\nNOT FOUND in SD root.\nUse 128x64 XBM format.",
+                64, 15, AlignCenter, AlignTop);
         } else {
             dialog_ex_set_text(
                 dialog,
-                "wallpaper.xbm FOUND\nbut wrong size.\n\nNeeds to be\n128x64px (1024 bytes)",
-                64, 22, AlignCenter, AlignTop);
+                "File: wallpaper.xbm\nFOUND but invalid.\nUse 128x64 XBM format.",
+                64, 15, AlignCenter, AlignTop);
         }
 
         view_dispatcher_switch_to_view(app->view_dispatcher, DesktopSettingsAppViewDialogEx);

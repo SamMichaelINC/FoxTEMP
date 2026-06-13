@@ -151,13 +151,15 @@ int32_t desktop_settings_app(void* p) {
     DesktopSettingsApp* app = desktop_settings_app_alloc();
     scene_manager_next_scene(app->scene_manager, DesktopSettingsAppSceneStart);
     view_dispatcher_run(app->view_dispatcher);
-    desktop_settings_app_free(app);
-
-    // Push updated settings to the live desktop service so clock and other
-    // viewport-driven settings take effect immediately without a restart.
+    // Push settings to the live desktop service BEFORE freeing the app.
+    // desktop_settings_app_free calls free(app), which also destroys app->settings.
+    // Calling desktop_api_set_settings after free reads garbage and then overwrites
+    // flash via DesktopGlobalSaveSettings, reverting every setting to junk.
     Desktop* desktop_svc = furi_record_open(RECORD_DESKTOP);
     desktop_api_set_settings(desktop_svc, &app->settings);
     furi_record_close(RECORD_DESKTOP);
+
+    desktop_settings_app_free(app);
 
     return 0;
 }

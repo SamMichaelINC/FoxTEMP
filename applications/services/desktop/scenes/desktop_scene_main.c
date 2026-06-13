@@ -136,8 +136,14 @@ bool desktop_scene_main_on_event(void* context, SceneManagerEvent event) {
             consumed = true;
             break;
 
-        case DesktopMainEventOpenDebug:
-            scene_manager_next_scene(desktop->scene_manager, DesktopSceneDebug);
+      //  case DesktopMainEventOpenDebug:
+      //      scene_manager_next_scene(desktop->scene_manager, DesktopSceneDebug);
+      //      consumed = true;
+      //      break;
+
+        case DesktopMainEventOpenClockLock:
+            // This tells the Flipper to transition to our new stealth clock scene
+            scene_manager_next_scene(desktop->scene_manager, DesktopSceneClockLock);
             consumed = true;
             break;
 

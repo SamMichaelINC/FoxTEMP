@@ -11,8 +11,7 @@
 #include "views/desktop_view_lock_menu.h"
 #include "views/desktop_view_debug.h"
 #include "views/desktop_view_slideshow.h"
-//#include "views/desktop_view_tos.h"
-
+#include "views/desktop_view_clock_lock.h"
 
 #include <gui/gui.h>
 #include <gui/view_stack.h>
@@ -34,13 +33,14 @@ typedef enum {
     DesktopViewIdPinInput,
     DesktopViewIdPinTimeout,
     DesktopViewIdSlideshow,
+    DesktopViewIdClockLock,
     DesktopViewIdTotal,
 } DesktopViewId;
 
 typedef struct {
     uint8_t hour;
     uint8_t minute;
-    bool format_12; // 1 - 12 hour, 0 - 24H
+    bool format_12;
 } DesktopClock;
 
 struct Desktop {
@@ -58,6 +58,7 @@ struct Desktop {
     DesktopViewPinTimeout* pin_timeout_view;
     DesktopSlideshowView* slideshow_view;
     DesktopViewPinInput* pin_input_view;
+    DesktopClockLockView* clock_lock_view;
 
     ViewStack* main_view_stack;
     ViewStack* locked_view_stack;
@@ -65,6 +66,9 @@ struct Desktop {
     ViewPort* lock_icon_viewport;
     ViewPort* clock_viewport;
     ViewPort* stealth_mode_icon_viewport;
+
+    View* wallpaper_view;
+    uint8_t* wallpaper_data;
 
     Loader* loader;
     Storage* storage;
